@@ -9,26 +9,24 @@ use std::fs;
 use std::path;
 
 fn init_empty_blog(m: &ArgMatches) -> Result<()> {
-    const config_file: &str = ".config";
-    const nojekyll_file: &str = ".nojekyll";
-
     let dir = path::Path::new(m.value_of("dir").unwrap_or("."));
 
     let file = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(dir.join(config_file))
-        .map_err(|e| Error::from_string(format!("failed to create {}: {}",
-                                                config_file, e)))?;
+        .open(dir.join(".config"))
+        .map_err(|e| format!("failed to create `.config`: {}", e))?;
+
     let file = fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .open(dir.join(".nojekyll"))
-        .map_err(|e| Error::from_string(format!("failed to create {}: {}",
-                                               nojekyll_file, e)))?;
-    fs::create_dir(dir.join("files"))?;
+        .map_err(|e| format!("failed to create `.nojekyll`: {}", e))?;
+    fs::create_dir(dir.join("files"))
+        .map_err(|e| format!("failed to create `files`: {}", e))?;
+
     Ok(())
 }
 

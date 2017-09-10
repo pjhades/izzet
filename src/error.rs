@@ -1,4 +1,4 @@
-use std::{fmt, io, result};
+use std::{fmt, io, result, string};
 
 pub struct Error {
     msg: String
@@ -17,6 +17,12 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.msg)
+    }
+}
+
+impl From<string::String> for Error {
+    fn from(msg: string::String) -> Self {
+        Error { msg }
     }
 }
 
