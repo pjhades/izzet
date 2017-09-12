@@ -8,23 +8,24 @@ use std::env;
 use std::fs;
 use std::path;
 
-fn init_empty_blog(m: &ArgMatches) -> Result<()> {
+fn init_empty_site(m: &ArgMatches) -> Result<()> {
     let dir = path::Path::new(m.value_of("dir").unwrap_or("."));
 
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(dir.join(".config"))
-        .map_err(|e| format!("failed to create `.config`: {}", e))?;
+    let opt = match m.is_present("force") {
+        true  => fs::OpenOptions::new()
+                 .write(true).create(true).truncate(true).clone(),
+        false => fs::OpenOptions::new()
+                 .write(true).create_new(true).clone(),
+    };
 
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(dir.join(".nojekyll"))
-        .map_err(|e| format!("failed to create `.nojekyll`: {}", e))?;
-    fs::create_dir(dir.join("files"))
+    opt.open(dir.join(".config"))
+       .map_err(|e| format!("failed to create `.config`: {}", e))?;
+    opt.open(dir.join(".nojekyll"))
+       .map_err(|e| format!("failed to create `.nojekyll`: {}", e))?;
+
+    fs::DirBuilder::new()
+        .recursive(m.is_present("force"))
+        .create(dir.join("files"))
         .map_err(|e| format!("failed to create `files`: {}", e))?;
 
     Ok(())
@@ -37,18 +38,20 @@ fn main() {
                     AppSettings::UnifiedHelpMessage,
                     AppSettings::VersionlessSubcommands])
         .subcommand(SubCommand::with_name("init")
-                    .about("Initialize an empty blog")
+                    .about("Initialize an empty site")
                     .args(&[
-                        Arg::from_usage("[dir] 'Directory for the blog'"),
+                        Arg::from_usage("[dir] 'Directory for the site'"),
+                        Arg::from_usage("-f, --force 'Overwrite existing \
+                                        site metadata files'"),
                     ]))
         .subcommand(SubCommand::with_name("gen")
-                    .about("Generate the blog"))
+                    .about("Generate the site"))
         .subcommand(SubCommand::with_name("view")
-                    .about("View the blog locally"))
+                    .about("View the site locally"))
         .get_matches();
 
     let ret = match app.subcommand() {
-        ("init", Some(m)) => init_empty_blog(m),
+        ("init", Some(m)) => init_empty_site(m),
         ("gen", Some(m)) => Ok(()),
         ("view", Some(m)) => Ok(()),
         _ => Ok(())
