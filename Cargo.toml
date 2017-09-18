@@ -4,4 +4,6 @@ version = "0.1.0"
 authors = ["Jing Peng <pj.hades@gmail.com>"]
 
 [dependencies]
-clap = "2"
+clap = "^2"
+regex = "^0.2"
+time = "^0.1"

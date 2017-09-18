@@ -1,3 +1,6 @@
+extern crate time;
+
+use regex;
 use std::{fmt, io, result, string};
 
 pub struct Error {
@@ -28,6 +31,18 @@ impl From<string::String> for Error {
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
+        Error { msg: e.to_string() }
+    }
+}
+
+impl From<regex::Error> for Error {
+    fn from(e: regex::Error) -> Self {
+        Error { msg: e.to_string() }
+    }
+}
+
+impl From<time::ParseError> for Error {
+    fn from(e: time::ParseError) -> Self {
         Error { msg: e.to_string() }
     }
 }

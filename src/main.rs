@@ -1,22 +1,26 @@
 extern crate clap;
+extern crate regex;
+extern crate time;
 
 mod error;
 
 use clap::{App, Arg, ArgMatches, AppSettings, SubCommand};
 use error::{Error, Result};
-use std::env;
-use std::fs;
-use std::path;
+use regex::Regex;
+use std::{env, fs, path};
+
+fn get_open_option(force: bool) -> fs::OpenOptions {
+    if force {
+        fs::OpenOptions::new().write(true).create(true).truncate(true).clone()
+    }
+    else {
+        fs::OpenOptions::new().write(true).create_new(true).clone()
+    }
+}
 
 fn init_empty_site(m: &ArgMatches) -> Result<()> {
     let dir = path::Path::new(m.value_of("dir").unwrap_or("."));
-
-    let opt = match m.is_present("force") {
-        true  => fs::OpenOptions::new()
-                 .write(true).create(true).truncate(true).clone(),
-        false => fs::OpenOptions::new()
-                 .write(true).create_new(true).clone(),
-    };
+    let opt = get_open_option(m.is_present("force"));
 
     opt.open(dir.join(".config"))
        .map_err(|e| format!("failed to create `.config`: {}", e))?;
@@ -31,6 +35,23 @@ fn init_empty_site(m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+fn create_post(m: &ArgMatches) -> Result<()> {
+    let link = m.value_of("link").expect("failed to get the link of post");
+    if !Regex::new(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)?$")?.is_match(link) {
+        return Err(Error::from_string(format!("invalid link name `{}'", link)));
+    }
+
+    // TODO: support other markdown format
+    let filename = format!("{}-{}.md",
+                           time::strftime("%Y-%m-%d", &time::now())?, link);
+    let opt = get_open_option(m.is_present("force"));
+    opt.open(&filename).map_err(|e| format!("failed to create `{}': {}",
+                                           filename, e))?;
+
+    // TODO: write initial meta data in TOML
+    Ok(())
+}
+
 fn main() {
     let app = App::new(env::args().nth(0).unwrap())
         .settings(&[AppSettings::DisableVersion,
@@ -42,7 +63,13 @@ fn main() {
                     .args(&[
                         Arg::from_usage("[dir] 'Directory for the site'"),
                         Arg::from_usage("-f, --force 'Overwrite existing \
-                                        site metadata files'"),
+                                        site metadata files'")
+                    ]))
+        .subcommand(SubCommand::with_name("post")
+                    .about("Create a new post with the specified link name.")
+                    .args(&[
+                        Arg::from_usage("<link> 'Link name of the post which'"),
+                        Arg::from_usage("-f, --force 'Overwrite existing post'")
                     ]))
         .subcommand(SubCommand::with_name("gen")
                     .about("Generate the site"))
@@ -52,7 +79,8 @@ fn main() {
 
     let ret = match app.subcommand() {
         ("init", Some(m)) => init_empty_site(m),
-        ("gen", Some(m)) => Ok(()),
+        ("gen",  Some(m)) => Ok(()),
+        ("post", Some(m)) => create_post(m),
         ("view", Some(m)) => Ok(()),
         _ => Ok(())
     };
