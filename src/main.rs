@@ -3,11 +3,13 @@ extern crate regex;
 extern crate time;
 
 mod error;
+mod post;
 
 use clap::{App, Arg, ArgMatches, AppSettings, SubCommand};
 use error::{Error, Result};
 use regex::Regex;
 use std::{env, fs, path};
+use std::io::Write;
 
 fn get_open_option(force: bool) -> fs::OpenOptions {
     if force {
@@ -41,14 +43,18 @@ fn create_post(m: &ArgMatches) -> Result<()> {
         return Err(Error::from_string(format!("invalid link name `{}'", link)));
     }
 
-    // TODO: support other markdown format
-    let filename = format!("{}-{}.md",
-                           time::strftime("%Y-%m-%d", &time::now())?, link);
+    let now = time::now();
+
+    let filename = format!("{}-{}.md", time::strftime("%Y-%m-%d", &now)?, link);
     let opt = get_open_option(m.is_present("force"));
-    opt.open(&filename).map_err(|e| format!("failed to create `{}': {}",
+    let mut file = opt.open(&filename)
+                      .map_err(|e| format!("failed to create `{}': {}",
                                            filename, e))?;
 
-    // TODO: write initial meta data in TOML
+    file.write(format!("%%\ntitle =\nlink = {}\ntimestamp = {}\n%%\n",
+                       link, time::strftime("%Y-%m-%d %H:%M:%S", &now)?)
+               .as_bytes())?;
+
     Ok(())
 }
 

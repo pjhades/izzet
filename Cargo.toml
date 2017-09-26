@@ -7,3 +7,4 @@ authors = ["Jing Peng <pj.hades@gmail.com>"]
 clap = "^2"
 regex = "^0.2"
 time = "^0.1"
+toml = "^0.4.5"
