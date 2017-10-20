@@ -72,7 +72,7 @@ fn main() {
                                         site metadata files'")
                     ]))
         .subcommand(SubCommand::with_name("post")
-                    .about("Create a new post with the specified link name.")
+                    .about("Create a new post with the specified link name")
                     .args(&[
                         Arg::from_usage("<link> 'Link name of the post which'"),
                         Arg::from_usage("-f, --force 'Overwrite existing post'")
