@@ -11,6 +11,10 @@ use regex::Regex;
 use std::{env, fs, path};
 use std::io::Write;
 
+const CONFIG_FILENAME: &str = ".izzetconfig";
+const NOJEKYLL_FILENAME: &str = ".nojekyll";
+const FILES_DIRNAME: &str = "files";
+
 fn get_open_option(force: bool) -> fs::OpenOptions {
     if force {
         fs::OpenOptions::new().write(true).create(true).truncate(true).clone()
@@ -24,15 +28,15 @@ fn init_empty_site(m: &ArgMatches) -> Result<()> {
     let dir = path::Path::new(m.value_of("dir").unwrap_or("."));
     let opt = get_open_option(m.is_present("force"));
 
-    opt.open(dir.join(".config"))
-       .map_err(|e| format!("failed to create `.config`: {}", e))?;
-    opt.open(dir.join(".nojekyll"))
-       .map_err(|e| format!("failed to create `.nojekyll`: {}", e))?;
+    opt.open(dir.join(CONFIG_FILENAME))
+       .map_err(|e| format!("failed to create `{}`: {}", CONFIG_FILENAME, e))?;
+    opt.open(dir.join(NOJEKYLL_FILENAME))
+       .map_err(|e| format!("failed to create `{}`: {}", NOJEKYLL_FILENAME, e))?;
 
     fs::DirBuilder::new()
         .recursive(m.is_present("force"))
-        .create(dir.join("files"))
-        .map_err(|e| format!("failed to create `files`: {}", e))?;
+        .create(dir.join(FILES_DIRNAME))
+        .map_err(|e| format!("failed to create `{}`: {}", FILES_DIRNAME, e))?;
 
     Ok(())
 }
