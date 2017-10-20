@@ -3,8 +3,16 @@ name = "izzet"
 version = "0.1.0"
 authors = ["Jing Peng <pj.hades@gmail.com>"]
 
+[lib]
+name = "izzet"
+path = "src/lib.rs"
+
 [dependencies]
+chrono = { version = "^0.4", features = ["serde"] }
 clap = "^2"
 regex = "^0.2"
+serde = "^1.0"
+serde_derive = "^1.0"
+tera = "^0.10.10"
 time = "^0.1"
 toml = "^0.4.5"

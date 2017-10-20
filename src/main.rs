@@ -1,63 +1,99 @@
+extern crate chrono;
 extern crate clap;
+extern crate izzet;
 extern crate regex;
 extern crate time;
 
-mod error;
-mod post;
-
+use chrono::Local;
 use clap::{App, Arg, ArgMatches, AppSettings, SubCommand};
-use error::{Error, Result};
+use izzet::error::{Error, Result};
+use izzet::{gen, post};
+use izzet::config::Config;
 use regex::Regex;
-use std::{env, fs, path};
+use std::env;
+use std::fs::{DirBuilder, OpenOptions};
+use std::path::Path;
 use std::io::Write;
 
-const CONFIG_FILENAME: &str = ".izzetconfig";
-const NOJEKYLL_FILENAME: &str = ".nojekyll";
-const FILES_DIRNAME: &str = "files";
-
-fn get_open_option(force: bool) -> fs::OpenOptions {
+// XXX this is ugly enough to deserve being rewritten
+fn get_open_option(force: bool) -> OpenOptions {
     if force {
-        fs::OpenOptions::new().write(true).create(true).truncate(true).clone()
+        OpenOptions::new().write(true).create(true).truncate(true).clone()
     }
     else {
-        fs::OpenOptions::new().write(true).create_new(true).clone()
+        OpenOptions::new().write(true).create_new(true).clone()
     }
 }
 
 fn init_empty_site(m: &ArgMatches) -> Result<()> {
-    let dir = path::Path::new(m.value_of("dir").unwrap_or("."));
+    let dir = Path::new(m.value_of("dir").unwrap_or("."));
     let opt = get_open_option(m.is_present("force"));
 
-    opt.open(dir.join(CONFIG_FILENAME))
-       .map_err(|e| format!("failed to create `{}`: {}", CONFIG_FILENAME, e))?;
-    opt.open(dir.join(NOJEKYLL_FILENAME))
-       .map_err(|e| format!("failed to create `{}`: {}", NOJEKYLL_FILENAME, e))?;
+    for filename in &[izzet::CONFIG_FILE,
+                      izzet::NOJEKYLL_FILE] {
+        opt.open(dir.join(filename))
+            .map_err(|e| format!("failed to create `{}`: {}", filename, e))?;
+    }
 
-    fs::DirBuilder::new()
-        .recursive(m.is_present("force"))
-        .create(dir.join(FILES_DIRNAME))
-        .map_err(|e| format!("failed to create `{}`: {}", FILES_DIRNAME, e))?;
+    for dirname in &[izzet::FILES_DIR,
+                     izzet::SRC_DIR,
+                     izzet::TEMPLATES_DIR] {
+        DirBuilder::new()
+            .recursive(m.is_present("force"))
+            .create(dir.join(dirname))
+            .map_err(|e| format!("failed to create `{}`: {}", dirname, e))?;
+    }
+
+    for &(filename, html) in &[(izzet::INDEX_FILE, izzet::INDEX_HTML),
+                               (izzet::POST_FILE, izzet::INDEX_HTML),
+                               (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)] {
+        let mut file = opt.open(dir.join(izzet::TEMPLATES_DIR).join(filename))
+                          .map_err(|e| format!("failed to create `{}': {}", filename, e))?;
+        file.write(html)?;
+    }
 
     Ok(())
 }
 
+// XXX let's not put the timestamp in the markdown file title
+// XXX we can simply create a Post with default value (empty)
+//     and serialize it to the file
 fn create_post(m: &ArgMatches) -> Result<()> {
     let link = m.value_of("link").expect("failed to get the link of post");
     if !Regex::new(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$")?.is_match(link) {
         return Err(Error::from_string(format!("invalid link name `{}'", link)));
     }
 
-    let now = time::now();
-
-    let filename = format!("{}-{}.md", time::strftime("%Y-%m-%d", &now)?, link);
+    let filename = format!("{}.md", link);
     let opt = get_open_option(m.is_present("force"));
     let mut file = opt.open(&filename)
                       .map_err(|e| format!("failed to create `{}': {}",
                                            filename, e))?;
 
-    file.write(format!("%%\ntitle =\nlink = {}\ntimestamp = {}\n%%\n",
-                       link, time::strftime("%Y-%m-%d %H:%M:%S", &now)?)
+    file.write(format!("title = ''\n\
+                        link = '{}'\n\
+                        timestamp = '{:?}'\n\
+                        {}\n",
+                       link,
+                       Local::now(),
+                       post::METADATA_DELIM_LINE)
                .as_bytes())?;
+
+    Ok(())
+}
+
+fn is_initialized() -> bool {
+    Path::new(izzet::CONFIG_FILE).exists()
+}
+
+fn generate_site(m: &ArgMatches) -> Result<()> {
+    if !is_initialized() {
+        return Err(Error::from_string("current directory is not initialized".to_string()));
+    }
+
+    let config = Config::from_path(Path::new(izzet::CONFIG_FILE))?;
+    println!("config={:?}", config);
+    gen::generate(config)?;
 
     Ok(())
 }
@@ -89,7 +125,7 @@ fn main() {
 
     let ret = match app.subcommand() {
         ("init", Some(m)) => init_empty_site(m),
-        ("gen",  Some(m)) => Ok(()),
+        ("gen",  Some(m)) => generate_site(m),
         ("post", Some(m)) => create_post(m),
         ("view", Some(m)) => Ok(()),
         _ => Ok(())
