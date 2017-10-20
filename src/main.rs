@@ -39,7 +39,7 @@ fn init_empty_site(m: &ArgMatches) -> Result<()> {
 
 fn create_post(m: &ArgMatches) -> Result<()> {
     let link = m.value_of("link").expect("failed to get the link of post");
-    if !Regex::new(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)?$")?.is_match(link) {
+    if !Regex::new(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$")?.is_match(link) {
         return Err(Error::from_string(format!("invalid link name `{}'", link)));
     }
 
