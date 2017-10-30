@@ -1,19 +1,21 @@
 extern crate chrono;
-extern crate clap;
+extern crate getopts;
 extern crate izzet;
 extern crate regex;
 extern crate time;
 
 use chrono::Local;
-use clap::{App, Arg, ArgMatches, AppSettings, SubCommand};
+use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
 use izzet::{gen, post};
 use izzet::config::Config;
 use regex::Regex;
 use std::env;
 use std::fs::{DirBuilder, OpenOptions};
-use std::path::Path;
+use std::path::PathBuf;
 use std::io::Write;
+
+const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
 // XXX this is ugly enough to deserve being rewritten
 fn get_open_option(force: bool) -> OpenOptions {
@@ -25,21 +27,24 @@ fn get_open_option(force: bool) -> OpenOptions {
     }
 }
 
-fn init_empty_site(m: &ArgMatches) -> Result<()> {
-    let dir = Path::new(m.value_of("dir").unwrap_or("."));
-    let opt = get_open_option(m.is_present("force"));
+fn init_empty_site(m: &Matches) -> Result<()> {
+    let dir = m.free.get(1)
+        .and_then(|s| Some(PathBuf::from(s)))
+        .unwrap_or(env::current_dir()?);
+
+    let opt = get_open_option(m.opt_present("force"));
 
     for filename in &[izzet::CONFIG_FILE,
                       izzet::NOJEKYLL_FILE] {
         opt.open(dir.join(filename))
-            .map_err(|e| format!("failed to create `{}`: {}", filename, e))?;
+           .map_err(|e| format!("failed to create `{}`: {}", filename, e))?;
     }
 
     for dirname in &[izzet::FILES_DIR,
                      izzet::SRC_DIR,
                      izzet::TEMPLATES_DIR] {
         DirBuilder::new()
-            .recursive(m.is_present("force"))
+            .recursive(m.opt_present("force"))
             .create(dir.join(dirname))
             .map_err(|e| format!("failed to create `{}`: {}", dirname, e))?;
     }
@@ -58,14 +63,14 @@ fn init_empty_site(m: &ArgMatches) -> Result<()> {
 // XXX let's not put the timestamp in the markdown file title
 // XXX we can simply create a Post with default value (empty)
 //     and serialize it to the file
-fn create_post(m: &ArgMatches) -> Result<()> {
-    let link = m.value_of("link").expect("failed to get the link of post");
+fn create_post(m: &Matches) -> Result<()> {
+    let link = m.free.get(1).expect("failed to get the link of post");
     if !Regex::new(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$")?.is_match(link) {
         return Err(Error::from_string(format!("invalid link name `{}'", link)));
     }
 
     let filename = format!("{}.md", link);
-    let opt = get_open_option(m.is_present("force"));
+    let opt = get_open_option(m.opt_present("force"));
     let mut file = opt.open(&filename)
                       .map_err(|e| format!("failed to create `{}': {}",
                                            filename, e))?;
@@ -83,52 +88,82 @@ fn create_post(m: &ArgMatches) -> Result<()> {
 }
 
 fn is_initialized() -> bool {
-    Path::new(izzet::CONFIG_FILE).exists()
+    PathBuf::from(izzet::CONFIG_FILE).exists()
 }
 
-fn generate_site(m: &ArgMatches) -> Result<()> {
+fn generate_site(_: &Matches) -> Result<()> {
     if !is_initialized() {
         return Err(Error::from_string("current directory is not initialized".to_string()));
     }
 
-    let config = Config::from_path(Path::new(izzet::CONFIG_FILE))?;
-    println!("config={:?}", config);
+    let config = Config::from_path(&PathBuf::from(izzet::CONFIG_FILE))?;
     gen::generate(config)?;
 
     Ok(())
 }
 
-fn main() {
-    let app = App::new(env::args().nth(0).unwrap())
-        .settings(&[AppSettings::DisableVersion,
-                    AppSettings::DeriveDisplayOrder,
-                    AppSettings::UnifiedHelpMessage,
-                    AppSettings::VersionlessSubcommands])
-        .subcommand(SubCommand::with_name("init")
-                    .about("Initialize an empty site")
-                    .args(&[
-                        Arg::from_usage("[dir] 'Directory for the site'"),
-                        Arg::from_usage("-f, --force 'Overwrite existing \
-                                        site metadata files'")
-                    ]))
-        .subcommand(SubCommand::with_name("post")
-                    .about("Create a new post with the specified link name")
-                    .args(&[
-                        Arg::from_usage("<link> 'Link name of the post which'"),
-                        Arg::from_usage("-f, --force 'Overwrite existing post'")
-                    ]))
-        .subcommand(SubCommand::with_name("gen")
-                    .about("Generate the site"))
-        .subcommand(SubCommand::with_name("view")
-                    .about("View the site locally"))
-        .get_matches();
+fn usage(opts: &Options) {
+    println!("{}", opts.usage(&format!("Usage: {} <options> <args>", PROG_NAME)));
+}
 
-    let ret = match app.subcommand() {
-        ("init", Some(m)) => init_empty_site(m),
-        ("gen",  Some(m)) => generate_site(m),
-        ("post", Some(m)) => create_post(m),
-        ("view", Some(m)) => Ok(()),
-        _ => Ok(())
+fn main() {
+    let mut opts = Options::new();
+
+    // one of these flags should be specified
+    opts.optflag("n", "new", "Initialize an empty site at the given location.");
+    opts.optflag("p", "post", "Create a post with the given permalink.");
+    opts.optflag("g", "gen", "Generate site, can be used along with -i and -o \
+                              to specify the input and output location.");
+    opts.optflag("f", "force", "Overwrite existing files when creating posts, \
+                                generating site output files, etc.");
+
+    opts.optopt("c", "config", "Run with the given configuration file. By default \
+                                configuration file will be looked for under the \
+                                current directory.", "CONFIG");
+    opts.optopt("i", "input", "Input site directory. Read input files from current \
+                              directory by default.", "INPUT");
+    opts.optopt("o", "output", "Output site directory. Write to current directory \
+                               by default.", "OUTPUT");
+
+    opts.optflag("h", "help", "Show this help message.");
+    opts.optflag("V", "version", "Display version information.");
+
+    let matches = match opts.parse(env::args()) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("{}\nTry `{1} -h` or `{1} --help` to see the help.", e, PROG_NAME);
+            return;
+        },
+    };
+
+    if matches.opt_present("h") {
+        usage(&opts);
+        return;
+    }
+
+    if matches.opt_present("V") {
+        println!("{} {}", PROG_NAME, env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
+    if !matches.opt_present("n")
+        && !matches.opt_present("p")
+        && !matches.opt_present("g") {
+        println!("{}: nothing to do", PROG_NAME);
+        return;
+    }
+
+    let ret = if matches.opt_present("n") {
+        init_empty_site(&matches)
+    }
+    else if matches.opt_present("p") {
+        create_post(&matches)
+    }
+    else if matches.opt_present("g") {
+        generate_site(&matches)
+    }
+    else {
+        Ok(())
     };
 
     if let Err(e) = ret {
