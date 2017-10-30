@@ -17,27 +17,28 @@ use std::io::Write;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
-// XXX this is ugly enough to deserve being rewritten
-fn get_open_option(force: bool) -> OpenOptions {
-    if force {
-        OpenOptions::new().write(true).create(true).truncate(true).clone()
+fn get_open_option(m: &Matches) -> OpenOptions {
+    let mut opener = OpenOptions::new();
+    opener.write(true);
+    match m.opt_present("force") {
+        true => { opener.create(true).truncate(true); }
+        false => { opener.create_new(true); }
     }
-    else {
-        OpenOptions::new().write(true).create_new(true).clone()
-    }
+
+    opener
 }
 
-fn init_empty_site(m: &Matches) -> Result<()> {
+fn init_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1)
         .and_then(|s| Some(PathBuf::from(s)))
         .unwrap_or(env::current_dir()?);
 
-    let opt = get_open_option(m.opt_present("force"));
+    let opener = get_open_option(m);
 
     for filename in &[izzet::CONFIG_FILE,
                       izzet::NOJEKYLL_FILE] {
-        opt.open(dir.join(filename))
-           .map_err(|e| format!("failed to create `{}`: {}", filename, e))?;
+        opener.open(dir.join(filename))
+              .map_err(|e| format!("failed to create `{}`: {}", filename, e))?;
     }
 
     for dirname in &[izzet::FILES_DIR,
@@ -52,8 +53,9 @@ fn init_empty_site(m: &Matches) -> Result<()> {
     for &(filename, html) in &[(izzet::INDEX_FILE, izzet::INDEX_HTML),
                                (izzet::POST_FILE, izzet::INDEX_HTML),
                                (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)] {
-        let mut file = opt.open(dir.join(izzet::TEMPLATES_DIR).join(filename))
-                          .map_err(|e| format!("failed to create `{}': {}", filename, e))?;
+        let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
+                                      .join(filename))
+                             .map_err(|e| format!("failed to create `{}': {}", filename, e))?;
         file.write(html)?;
     }
 
@@ -70,7 +72,7 @@ fn create_post(m: &Matches) -> Result<()> {
     }
 
     let filename = format!("{}.md", link);
-    let opt = get_open_option(m.opt_present("force"));
+    let opt = get_open_option(m);
     let mut file = opt.open(&filename)
                       .map_err(|e| format!("failed to create `{}': {}",
                                            filename, e))?;
@@ -154,7 +156,7 @@ fn main() {
     }
 
     let ret = if matches.opt_present("n") {
-        init_empty_site(&matches)
+        init_site(&matches)
     }
     else if matches.opt_present("p") {
         create_post(&matches)
