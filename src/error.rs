@@ -1,6 +1,5 @@
 use std::{fmt, io, result, string};
 use tera;
-use time;
 use toml;
 
 pub struct Error {
@@ -34,12 +33,6 @@ impl From<string::String> for Error {
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
-        Error { msg: e.to_string() }
-    }
-}
-
-impl From<time::ParseError> for Error {
-    fn from(e: time::ParseError) -> Self {
         Error { msg: e.to_string() }
     }
 }

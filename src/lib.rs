@@ -2,7 +2,6 @@ extern crate chrono;
 #[macro_use]
 extern crate serde_derive;
 extern crate tera;
-extern crate time;
 extern crate toml;
 
 pub mod config;

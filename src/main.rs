@@ -1,6 +1,5 @@
 extern crate getopts;
 extern crate izzet;
-extern crate time;
 extern crate toml;
 
 use getopts::{Matches, Options};
