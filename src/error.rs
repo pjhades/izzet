@@ -1,4 +1,3 @@
-use regex;
 use std::{fmt, io, result, string};
 use tera;
 use time;
@@ -39,12 +38,6 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<regex::Error> for Error {
-    fn from(e: regex::Error) -> Self {
-        Error { msg: e.to_string() }
-    }
-}
-
 impl From<time::ParseError> for Error {
     fn from(e: time::ParseError) -> Self {
         Error { msg: e.to_string() }
@@ -53,6 +46,12 @@ impl From<time::ParseError> for Error {
 
 impl From<toml::de::Error> for Error {
     fn from(e: toml::de::Error) -> Self {
+        Error { msg: e.to_string() }
+    }
+}
+
+impl From<toml::ser::Error> for Error {
+    fn from(e: toml::ser::Error) -> Self {
         Error { msg: e.to_string() }
     }
 }

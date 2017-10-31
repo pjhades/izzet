@@ -1,15 +1,13 @@
-extern crate chrono;
 extern crate getopts;
 extern crate izzet;
-extern crate regex;
 extern crate time;
+extern crate toml;
 
-use chrono::Local;
 use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
-use izzet::{gen, post};
+use izzet::post::{Post, POST_META_END};
+use izzet::gen;
 use izzet::config::Config;
-use regex::Regex;
 use std::env;
 use std::fs::{DirBuilder, OpenOptions};
 use std::path::PathBuf;
@@ -17,42 +15,49 @@ use std::io::Write;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
-fn get_open_option(m: &Matches) -> OpenOptions {
+fn get_opener(m: &Matches) -> OpenOptions {
     let mut opener = OpenOptions::new();
     opener.write(true);
-    match m.opt_present("force") {
-        true => { opener.create(true).truncate(true); }
-        false => { opener.create_new(true); }
+    if m.opt_present("force") {
+        opener.create(true).truncate(true);
     }
-
+    else {
+        opener.create_new(true);
+    }
     opener
 }
 
-fn init_site(m: &Matches) -> Result<()> {
+fn create_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1)
         .and_then(|s| Some(PathBuf::from(s)))
         .unwrap_or(env::current_dir()?);
 
-    let opener = get_open_option(m);
+    let opener = get_opener(m);
 
-    for filename in &[izzet::CONFIG_FILE,
-                      izzet::NOJEKYLL_FILE] {
+    for filename in &[
+        izzet::CONFIG_FILE,
+        izzet::NOJEKYLL_FILE
+    ] {
         opener.open(dir.join(filename))
               .map_err(|e| format!("failed to create `{}`: {}", filename, e))?;
     }
 
-    for dirname in &[izzet::FILES_DIR,
-                     izzet::SRC_DIR,
-                     izzet::TEMPLATES_DIR] {
+    for dirname in &[
+        izzet::FILES_DIR,
+        izzet::SRC_DIR,
+        izzet::TEMPLATES_DIR
+    ] {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
             .create(dir.join(dirname))
             .map_err(|e| format!("failed to create `{}`: {}", dirname, e))?;
     }
 
-    for &(filename, html) in &[(izzet::INDEX_FILE, izzet::INDEX_HTML),
-                               (izzet::POST_FILE, izzet::INDEX_HTML),
-                               (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)] {
+    for &(filename, html) in &[
+        (izzet::INDEX_FILE,   izzet::INDEX_HTML),
+        (izzet::POST_FILE,    izzet::INDEX_HTML),
+        (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)
+    ] {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))
                              .map_err(|e| format!("failed to create `{}': {}", filename, e))?;
@@ -62,29 +67,21 @@ fn init_site(m: &Matches) -> Result<()> {
     Ok(())
 }
 
-// XXX let's not put the timestamp in the markdown file title
-// XXX we can simply create a Post with default value (empty)
-//     and serialize it to the file
 fn create_post(m: &Matches) -> Result<()> {
-    let link = m.free.get(1).expect("failed to get the link of post");
-    if !Regex::new(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$")?.is_match(link) {
-        return Err(Error::from_string(format!("invalid link name `{}'", link)));
-    }
+    let link = m.free.get(1)
+        .ok_or(Error::new("failed to get the link of post"))?;
 
     let filename = format!("{}.md", link);
-    let opt = get_open_option(m);
-    let mut file = opt.open(&filename)
-                      .map_err(|e| format!("failed to create `{}': {}",
-                                           filename, e))?;
+    let opener = get_opener(m);
+    let mut file = opener.open(&filename)
+                         .map_err(|e| format!("failed to create `{}': {}", filename, e))?;
 
-    file.write(format!("title = ''\n\
-                        link = '{}'\n\
-                        timestamp = '{:?}'\n\
-                        {}\n",
-                       link,
-                       Local::now(),
-                       post::METADATA_DELIM_LINE)
-               .as_bytes())?;
+    let mut post = Post::new();
+    post.meta.link = link.to_string();
+
+    file.write(toml::to_string(&post.meta)?.as_bytes())?;
+    file.write(POST_META_END.as_bytes())?;
+    file.write(&post.content.as_bytes())?;
 
     Ok(())
 }
@@ -156,7 +153,7 @@ fn main() {
     }
 
     let ret = if matches.opt_present("n") {
-        init_site(&matches)
+        create_site(&matches)
     }
     else if matches.opt_present("p") {
         create_post(&matches)
