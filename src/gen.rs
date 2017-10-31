@@ -14,7 +14,7 @@ pub fn generate(config: Config) -> Result<()> {
     for entry in fs::read_dir(::SRC_DIR)? {
         let entry = entry?;
 
-        let post = Post::from_path(&entry.path())?;
+        let post = Post::from_file(&entry.path())?;
         let mut ctx = Context::new();
 
         // XXX change this to const

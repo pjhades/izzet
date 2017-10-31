@@ -1,5 +1,4 @@
 extern crate chrono;
-extern crate regex;
 #[macro_use]
 extern crate serde_derive;
 extern crate tera;
