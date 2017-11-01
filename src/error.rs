@@ -12,10 +12,6 @@ impl Error {
     pub fn new(msg: &str) -> Self {
         Error { msg: msg.to_string() }
     }
-
-    pub fn from_string(msg: String) -> Self {
-        Error { msg }
-    }
 }
 
 // XXX macro is your friend
