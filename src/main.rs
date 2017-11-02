@@ -68,7 +68,7 @@ fn create_site(m: &Matches) -> Result<()> {
 
 fn create_post(m: &Matches) -> Result<()> {
     let link = m.free.get(1)
-        .ok_or(Error::new("failed to get the link of post"))?;
+        .ok_or(Error::new("failed to get the link of post", None))?;
 
     let filename = format!("{}.md", link);
     let opener = get_opener(m);
@@ -91,7 +91,7 @@ fn is_initialized() -> bool {
 
 fn generate_site(_: &Matches) -> Result<()> {
     if !is_initialized() {
-        return Err(Error::new("current directory is not initialized"));
+        return Err(Error::new("current directory is not initialized", None));
     }
 
     let config = Config::from_path(&PathBuf::from(izzet::CONFIG_FILE))?;
