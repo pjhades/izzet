@@ -38,7 +38,8 @@ fn create_site(m: &Matches) -> Result<()> {
         izzet::NOJEKYLL_FILE
     ] {
         opener.open(dir.join(filename))
-              .map_err(|e| format!("failed to create {}: {}", filename, e))?;
+              .map_err(|e| Error::new(format!("failed to create {}: {}", filename, e),
+                                      Some(Box::new(e))))?;
     }
 
     for dirname in &[
@@ -49,7 +50,8 @@ fn create_site(m: &Matches) -> Result<()> {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
             .create(dir.join(dirname))
-            .map_err(|e| format!("failed to create {}: {}", dirname, e))?;
+            .map_err(|e| Error::new(format!("failed to create {}: {}", dirname, e),
+                                    Some(Box::new(e))))?;
     }
 
     for &(filename, html) in &[
@@ -59,7 +61,8 @@ fn create_site(m: &Matches) -> Result<()> {
     ] {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))
-                             .map_err(|e| format!("failed to create {}: {}", filename, e))?;
+                             .map_err(|e| Error::new(format!("failed to create {}: {}", filename, e),
+                                                     Some(Box::new(e))))?;
         file.write(html)?;
     }
 
@@ -68,12 +71,13 @@ fn create_site(m: &Matches) -> Result<()> {
 
 fn create_post(m: &Matches) -> Result<()> {
     let link = m.free.get(1)
-        .ok_or(Error::new("failed to get the link of post", None))?;
+        .ok_or(Error::new("failed to get the link of post".to_string(), None))?;
 
     let filename = format!("{}.md", link);
     let opener = get_opener(m);
     let mut file = opener.open(&filename)
-                         .map_err(|e| format!("failed to create {}: {}", filename, e))?;
+                         .map_err(|e| Error::new(format!("failed to create {}: {}", filename, e),
+                                                 Some(Box::new(e))))?;
 
     let mut post = Post::new();
     post.meta.link = link.to_string();
@@ -91,7 +95,7 @@ fn is_initialized() -> bool {
 
 fn generate_site(_: &Matches) -> Result<()> {
     if !is_initialized() {
-        return Err(Error::new("current directory is not initialized", None));
+        return Err(Error::new("current directory is not initialized".to_string(), None));
     }
 
     let config = Config::from_path(&PathBuf::from(izzet::CONFIG_FILE))?;

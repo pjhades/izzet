@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use error::Result;
+use error::{Error, Result};
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
 use std::path::Path;
@@ -47,7 +47,7 @@ impl Post {
 
     pub fn from_file(path: &Path) -> Result<Self> {
         let reader = File::open(path)
-                     .map_err(|e| format!("open {:?} failed: {}", path, e))?;
+            .map_err(|e| Error::new(format!("open {:?} failed: {}", path, e), Some(Box::new(e))))?;
         let mut reader = BufReader::new(reader);
 
         // parse metadata
@@ -57,16 +57,19 @@ impl Post {
             meta += &line;
             line.clear();
             reader.read_line(&mut line)
-                  .map_err(|e| format!("read metadata from {:?} failed: {}", path, e))?;
+                  .map_err(|e| Error::new(format!("read metadata from {:?} failed: {}", path, e),
+                                          Some(Box::new(e))))?;
         }
 
         let meta: PostMeta = toml::from_str(&meta)
-            .map_err(|e| format!("parse metadata of {:?} failed: {}", path, e))?;
+            .map_err(|e| Error::new(format!("parse metadata of {:?} failed: {}", path, e),
+                                    Some(Box::new(e))))?;
 
         // parse content
         let mut content = vec![];
         reader.read_to_end(&mut content)
-              .map_err(|e| format!("read content from {:?} failed: {}", path, e))?;
+              .map_err(|e| Error::new(format!("read content from {:?} failed: {}", path, e),
+                                      Some(Box::new(e))))?;
 
         Ok(Post {
             meta,

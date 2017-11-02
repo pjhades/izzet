@@ -12,8 +12,8 @@ pub struct Error {
 pub type Result<T> = result::Result<T, Error>;
 
 impl Error {
-    pub fn new(msg: &str, origin: Option<Box<error::Error>>) -> Self {
-        Error { msg: msg.to_string(), origin }
+    pub fn new(msg: String, origin: Option<Box<error::Error>>) -> Self {
+        Error { msg, origin }
     }
 }
 
