@@ -9,8 +9,8 @@ pub struct Error {
 pub type Result<T> = result::Result<T, Error>;
 
 impl Error {
-    pub fn new(msg: &str) -> Self {
-        Error { msg: msg.to_string() }
+    pub fn new(msg: String) -> Self {
+        Error { msg }
     }
 }
 

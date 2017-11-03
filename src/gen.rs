@@ -1,46 +1,72 @@
 use chrono::Datelike;
 use config::Config;
-use error::Result;
+use error::{Error, Result};
 use post::Post;
 use std::fs::{self, DirBuilder, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::PathBuf;
 use tera::{Context, Tera};
 
-pub fn generate(config: Config) -> Result<()> {
-    let tera = Tera::new("templates/*")
-               .map_err(|e| format!("compile templates failed: {}", e))?;
+fn output_post(post: &Post, out_dir: &PathBuf, content: &[u8]) -> Result<()> {
+    let dirname = format!("{}/{}/{}",
+                          post.meta.ts.year(),
+                          post.meta.ts.month(),
+                          post.meta.ts.day());
 
-    for entry in fs::read_dir(::SRC_DIR)? {
+    DirBuilder::new()
+        .recursive(true)
+        .create(&dirname)
+        .map_err(|e| format!("fail to create {}: {}", &dirname, e))?;
+
+    let mut filename = out_dir
+        .join(&dirname)
+        .join(&post.meta.link);
+
+    if !filename.set_extension("html") {
+        return Err(Error::new(format!("bad output filename {:?}", filename)));
+    }
+
+    let mut out = OpenOptions::new()
+        .write(true).create_new(true)
+        .open(&filename)
+        .map_err(|e| format!("fail to create {:?}: {}", &filename, e))?;
+
+    out.write(content)?;
+
+    Ok(())
+}
+
+fn render_post(tera: &Tera, config: &Config, post: &Post) -> Result<String> {
+    let mut ctx = Context::new();
+    ctx.add("post", post);
+    ctx.add("config", config);
+
+    tera.render(::INDEX_FILE, &ctx)
+        .map_err(|e| Error::new(format!("fail to render {:?}: {}", post.path, e)))
+}
+
+pub fn generate(config: Config, in_dir: PathBuf, out_dir: PathBuf) -> Result<()> {
+    let tera = Tera::new(in_dir.join(::TEMPLATES_DIR)
+                               .join("*")
+                               .to_str()
+                               .ok_or(Error::new("cannot get templates".to_string()))?)
+        .map_err(|e| format!("compile templates fails: {}", e))?;
+
+    let mut latest_post = None;
+
+    for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
         let entry = entry?;
-
         let post = Post::from_file(&entry.path())?;
-        let mut ctx = Context::new();
 
-        // XXX change this to const
-        ctx.add("post", &post);
-        ctx.add("config", &config);
+        println!("rendering {:?}", &entry.path());
 
-        // XXX change this to const
-        let s = tera.render("index.html", &ctx)
-                    .map_err(|e| format!("render {:?} failed: {}", entry.path(), e))?;
+        render_post(&tera, &config, &post)
+            .and_then(|c| output_post(&post, &out_dir, c.as_bytes()))?;
 
-        let dirname = format!("{}/{}/{}",
-                              post.meta.timestamp.year(),
-                              post.meta.timestamp.month(),
-                              post.meta.timestamp.day());
-        DirBuilder::new()
-            .recursive(true)
-            .create(&dirname)
-            .map_err(|e| format!("failed to create {}: {}", &dirname, e))?;
-
-        let filename = Path::new(&dirname).join(post.meta.link + ".html");
-        let mut out = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&filename)
-            .map_err(|e| format!("failed to create {:?}: {}", &filename, e))?;
-        out.write(s.as_bytes())?;
+        latest_post = match latest_post {
+            None => Some(post),
+            Some(p) => Some(if post.meta.ts > p.meta.ts { post } else { p })
+        };
     }
 
     Ok(())

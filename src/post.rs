@@ -2,7 +2,7 @@ use chrono::{DateTime, Local};
 use error::Result;
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
-use std::path::Path;
+use std::path::PathBuf;
 use std::string::String;
 use toml;
 
@@ -12,7 +12,7 @@ pub const POST_META_END: &str = "%%%\n";
 pub struct PostMeta {
     pub title: String,
     pub link: String,
-    pub timestamp: DateTime<Local>,
+    pub ts: DateTime<Local>,
 }
 
 impl Default for PostMeta {
@@ -20,7 +20,7 @@ impl Default for PostMeta {
         PostMeta {
             title: "Default Title".to_string(),
             link: "default-link".to_string(),
-            timestamp: Local::now(),
+            ts: Local::now(),
         }
     }
 }
@@ -28,6 +28,7 @@ impl Default for PostMeta {
 #[derive(Serialize)]
 pub struct Post {
     pub meta: PostMeta,
+    pub path: PathBuf,
     pub content: String,
 }
 
@@ -35,6 +36,7 @@ impl Default for Post {
     fn default() -> Self {
         Post {
             meta: Default::default(),
+            path: Default::default(),
             content: "".to_string(),
         }
     }
@@ -45,9 +47,9 @@ impl Post {
         Post { ..Default::default() }
     }
 
-    pub fn from_file(path: &Path) -> Result<Self> {
+    pub fn from_file(path: &PathBuf) -> Result<Self> {
         let reader = File::open(path)
-                     .map_err(|e| format!("open {:?} failed: {}", path, e))?;
+            .map_err(|e| format!("open {:?} failed: {}", path, e))?;
         let mut reader = BufReader::new(reader);
 
         // parse metadata
@@ -70,6 +72,7 @@ impl Post {
 
         Ok(Post {
             meta,
+            path: path.clone(),
             content: String::from_utf8(content)?,
         })
     }

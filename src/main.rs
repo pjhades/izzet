@@ -10,6 +10,7 @@ use izzet::config::Config;
 use std::env;
 use std::fs::{DirBuilder, OpenOptions};
 use std::path::PathBuf;
+use std::process;
 use std::io::Write;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
@@ -38,7 +39,7 @@ fn create_site(m: &Matches) -> Result<()> {
         izzet::NOJEKYLL_FILE
     ] {
         opener.open(dir.join(filename))
-              .map_err(|e| format!("failed to create {}: {}", filename, e))?;
+              .map_err(|e| format!("fail to create {}: {}", filename, e))?;
     }
 
     for dirname in &[
@@ -49,7 +50,7 @@ fn create_site(m: &Matches) -> Result<()> {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
             .create(dir.join(dirname))
-            .map_err(|e| format!("failed to create {}: {}", dirname, e))?;
+            .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
     }
 
     for &(filename, html) in &[
@@ -59,7 +60,7 @@ fn create_site(m: &Matches) -> Result<()> {
     ] {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))
-                             .map_err(|e| format!("failed to create {}: {}", filename, e))?;
+                             .map_err(|e| format!("fail to create {}: {}", filename, e))?;
         file.write(html)?;
     }
 
@@ -68,12 +69,12 @@ fn create_site(m: &Matches) -> Result<()> {
 
 fn create_post(m: &Matches) -> Result<()> {
     let link = m.free.get(1)
-        .ok_or(Error::new("failed to get the link of post"))?;
+        .ok_or(Error::new("fail to get the link of post".to_string()))?;
 
     let filename = format!("{}.md", link);
     let opener = get_opener(m);
     let mut file = opener.open(&filename)
-                         .map_err(|e| format!("failed to create {}: {}", filename, e))?;
+                         .map_err(|e| format!("fail to create {}: {}", filename, e))?;
 
     let mut post = Post::new();
     post.meta.link = link.to_string();
@@ -85,23 +86,42 @@ fn create_post(m: &Matches) -> Result<()> {
     Ok(())
 }
 
-fn is_initialized() -> bool {
-    PathBuf::from(izzet::CONFIG_FILE).exists()
-}
+fn generate_site(m: &Matches, config: Config) -> Result<()> {
+    let in_dir = m.opt_str("i")
+        .map(|s| PathBuf::from(s))
+        .unwrap_or(env::current_dir()?);
+    let out_dir = m.opt_str("o")
+        .map(|s| PathBuf::from(s))
+        .unwrap_or(env::current_dir()?);
 
-fn generate_site(_: &Matches) -> Result<()> {
-    if !is_initialized() {
-        return Err(Error::new("current directory is not initialized"));
-    }
-
-    let config = Config::from_path(&PathBuf::from(izzet::CONFIG_FILE))?;
-    gen::generate(config)?;
+    gen::generate(config, in_dir, out_dir)?;
 
     Ok(())
 }
 
 fn usage(opts: &Options) {
-    println!("{}", opts.usage(&format!("Usage: {} <options> <args>", PROG_NAME)));
+    println!("{}", opts.usage(&format!("usage: {} <options> <args>", PROG_NAME)));
+}
+
+fn run(m: Matches) -> Result<()> {
+    if m.opt_present("n") {
+        create_site(&m)?;
+        return Ok(());
+    }
+
+    let config = Config::from_file(m.opt_str("c")
+                                    .map(|p| PathBuf::from(p))
+                                    .unwrap_or(env::current_dir()?)
+                                    .join(izzet::CONFIG_FILE))?;
+
+    if m.opt_present("p") {
+        create_post(&m)?;
+    }
+    else if m.opt_present("g") {
+        generate_site(&m, config)?;
+    }
+
+    Ok(())
 }
 
 fn main() {
@@ -129,8 +149,8 @@ fn main() {
     let matches = match opts.parse(env::args()) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!("{}\nTry `{1} -h` or `{1} --help` to see the help.", e, PROG_NAME);
-            return;
+            eprintln!("{}\ntry `{1} -h` or `{1} --help` to see the help.", e, PROG_NAME);
+            process::exit(1);
         },
     };
 
@@ -147,24 +167,20 @@ fn main() {
     if !matches.opt_present("n")
         && !matches.opt_present("p")
         && !matches.opt_present("g") {
-        println!("{}: nothing to do", PROG_NAME);
-        return;
+        println!("nothing to do.");
+        process::exit(1);
     }
 
-    let ret = if matches.opt_present("n") {
-        create_site(&matches)
+    let mutex_opts = ["n", "p", "g"];
+    if mutex_opts.iter()
+        .map(|o| matches.opt_present(o) as u32)
+        .sum::<u32>() != 1 {
+        eprintln!("only one of `-n', `-p' and `-g' could be specified");
+        process::exit(1);
     }
-    else if matches.opt_present("p") {
-        create_post(&matches)
-    }
-    else if matches.opt_present("g") {
-        generate_site(&matches)
-    }
-    else {
-        Ok(())
-    };
 
-    if let Err(e) = ret {
-        println!("{}", e)
+    if let Err(e) = run(matches) {
+        eprintln!("{}", e);
+        process::exit(1);
     }
 }
