@@ -2,12 +2,12 @@ use chrono::Datelike;
 use config::Config;
 use error::{Error, Result};
 use post::Post;
-use std::fs::{self, DirBuilder, OpenOptions};
+use std::fs::{self, DirBuilder};
 use std::io::Write;
 use std::path::PathBuf;
 use tera::{Context, Tera};
 
-fn output_post(post: &Post, out_dir: &PathBuf, content: &[u8]) -> Result<()> {
+fn output_post(post: &Post, out_dir: &PathBuf, force: bool, content: &[u8]) -> Result<()> {
     let dirname = format!("{}/{}/{}",
                           post.meta.ts.year(),
                           post.meta.ts.month(),
@@ -26,8 +26,7 @@ fn output_post(post: &Post, out_dir: &PathBuf, content: &[u8]) -> Result<()> {
         return Err(Error::new(format!("bad output filename {:?}", filename)));
     }
 
-    let mut out = OpenOptions::new()
-        .write(true).create_new(true)
+    let mut out = ::get_opener(force)
         .open(&filename)
         .map_err(|e| format!("fail to create {:?}: {}", &filename, e))?;
 
@@ -45,7 +44,7 @@ fn render_post(tera: &Tera, config: &Config, post: &Post) -> Result<String> {
         .map_err(|e| Error::new(format!("fail to render {:?}: {}", post.path, e)))
 }
 
-pub fn generate(config: Config, in_dir: PathBuf, out_dir: PathBuf) -> Result<()> {
+pub fn generate(config: Config, in_dir: PathBuf, out_dir: PathBuf, force: bool) -> Result<()> {
     let tera = Tera::new(in_dir.join(::TEMPLATES_DIR)
                                .join("*")
                                .to_str()
@@ -61,7 +60,7 @@ pub fn generate(config: Config, in_dir: PathBuf, out_dir: PathBuf) -> Result<()>
         println!("rendering {:?}", &entry.path());
 
         render_post(&tera, &config, &post)
-            .and_then(|c| output_post(&post, &out_dir, c.as_bytes()))?;
+            .and_then(|c| output_post(&post, &out_dir, force, c.as_bytes()))?;
 
         latest_post = match latest_post {
             None => Some(post),

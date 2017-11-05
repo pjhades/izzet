@@ -4,6 +4,8 @@ extern crate serde_derive;
 extern crate tera;
 extern crate toml;
 
+use std::fs::OpenOptions;
+
 pub mod config;
 pub mod error;
 pub mod gen;
@@ -56,3 +58,15 @@ pub const ARCHIVE_HTML: &[u8] = b"\
 </body>
 </html>
 ";
+
+pub fn get_opener(force: bool) -> OpenOptions {
+    let mut opener = OpenOptions::new();
+    opener.write(true);
+    if force {
+        opener.create(true).truncate(true);
+    }
+    else {
+        opener.create_new(true);
+    }
+    opener
+}

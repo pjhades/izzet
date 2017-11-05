@@ -6,33 +6,22 @@ use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
 use izzet::post::{Post, POST_META_END};
 use izzet::gen;
+use izzet::get_opener;
 use izzet::config::Config;
 use std::env;
-use std::fs::{DirBuilder, OpenOptions};
+use std::fs::DirBuilder;
 use std::path::PathBuf;
 use std::process;
 use std::io::Write;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
-fn get_opener(m: &Matches) -> OpenOptions {
-    let mut opener = OpenOptions::new();
-    opener.write(true);
-    if m.opt_present("force") {
-        opener.create(true).truncate(true);
-    }
-    else {
-        opener.create_new(true);
-    }
-    opener
-}
-
 fn create_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1)
         .and_then(|s| Some(PathBuf::from(s)))
         .unwrap_or(env::current_dir()?);
 
-    let opener = get_opener(m);
+    let opener = get_opener(m.opt_present("force"));
 
     for filename in &[
         izzet::CONFIG_FILE,
@@ -72,7 +61,7 @@ fn create_post(m: &Matches) -> Result<()> {
         .ok_or(Error::new("fail to get the link of post".to_string()))?;
 
     let filename = format!("{}.md", link);
-    let opener = get_opener(m);
+    let opener = get_opener(m.opt_present("force"));
     let mut file = opener.open(&filename)
                          .map_err(|e| format!("fail to create {}: {}", filename, e))?;
 
@@ -87,14 +76,14 @@ fn create_post(m: &Matches) -> Result<()> {
 }
 
 fn generate_site(m: &Matches, config: Config) -> Result<()> {
-    let in_dir = m.opt_str("i")
+    let in_dir = m.opt_str("input")
         .map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
-    let out_dir = m.opt_str("o")
+    let out_dir = m.opt_str("output")
         .map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
 
-    gen::generate(config, in_dir, out_dir)?;
+    gen::generate(config, in_dir, out_dir, m.opt_present("force"))?;
 
     Ok(())
 }
@@ -104,7 +93,7 @@ fn usage(opts: &Options) {
 }
 
 fn run(m: Matches) -> Result<()> {
-    if m.opt_present("n") {
+    if m.opt_present("new") {
         create_site(&m)?;
         return Ok(());
     }
@@ -114,10 +103,10 @@ fn run(m: Matches) -> Result<()> {
                                     .unwrap_or(env::current_dir()?)
                                     .join(izzet::CONFIG_FILE))?;
 
-    if m.opt_present("p") {
+    if m.opt_present("post") {
         create_post(&m)?;
     }
-    else if m.opt_present("g") {
+    else if m.opt_present("gen") {
         generate_site(&m, config)?;
     }
 
@@ -154,24 +143,24 @@ fn main() {
         },
     };
 
-    if matches.opt_present("h") {
+    if matches.opt_present("help") {
         usage(&opts);
         return;
     }
 
-    if matches.opt_present("V") {
+    if matches.opt_present("version") {
         println!("{} {}", PROG_NAME, env!("CARGO_PKG_VERSION"));
         return;
     }
 
-    if !matches.opt_present("n")
+    if !matches.opt_present("new")
         && !matches.opt_present("p")
         && !matches.opt_present("g") {
         println!("nothing to do.");
         process::exit(1);
     }
 
-    let mutex_opts = ["n", "p", "g"];
+    let mutex_opts = ["new", "post", "gen"];
     if mutex_opts.iter()
         .map(|o| matches.opt_present(o) as u32)
         .sum::<u32>() != 1 {
