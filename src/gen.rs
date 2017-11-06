@@ -64,7 +64,7 @@ pub fn generate(config: Config) -> Result<()> {
 
     let mut latest_post = None;
 
-    for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
+    for entry in fs::read_dir(in_dir.join(::ARTICLES_DIR))? {
         let entry = entry?;
         let post = Post::from_file(&entry.path())?;
 
