@@ -2,12 +2,15 @@ use error::Result;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use toml;
 
-// XXX make some of them optional
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub force: Option<bool>,
+    pub in_dir: Option<PathBuf>,
+    pub out_dir: Option<PathBuf>,
+
     pub title: String,
 }
 
