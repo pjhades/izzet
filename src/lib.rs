@@ -11,18 +11,36 @@ pub mod error;
 pub mod gen;
 pub mod post;
 
-pub const CONFIG_FILE: &str = ".izzetconfig";
+pub const CONFIG_FILE:   &str = ".izzetconfig";
 // XXX this should be made configurable
 pub const NOJEKYLL_FILE: &str = ".nojekyll";
-
-pub const FILES_DIR: &str = "files";
-pub const SRC_DIR: &str = "src";
+pub const INDEX_FILE:    &str = "index.html";
+pub const POST_FILE:     &str = "post.html";
+pub const ARCHIVE_FILE:  &str = "archive.html";
+pub const FILES_DIR:     &str = "files";
+pub const ARTICLES_DIR:   &str = "articles";
+pub const PAGES_DIR:     &str = "pages";
 pub const TEMPLATES_DIR: &str = "templates";
 
-pub const INDEX_FILE: &str = "index.html";
-pub const POST_FILE: &str = "post.html";
-pub const ARCHIVE_FILE: &str = "archive.html";
+pub const SITE_DIRS:  &[&str] = &[
+    FILES_DIR,
+    ARTICLES_DIR,
+    PAGES_DIR,
+    TEMPLATES_DIR
+];
 
+pub const SITE_FILES: &[&str] = &[
+    NOJEKYLL_FILE,
+    CONFIG_FILE
+];
+
+pub const SITE_TEMPLATES: &[(&str, &[u8])] = &[
+    (INDEX_FILE,   INDEX_HTML),
+    (POST_FILE,    INDEX_HTML),
+    (ARCHIVE_FILE, ARCHIVE_HTML),
+];
+
+// HTML for the default template
 pub const INDEX_HTML: &[u8] = b"\
 <!DOCTYPE html>
 <html>

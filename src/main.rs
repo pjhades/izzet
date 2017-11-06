@@ -23,24 +23,19 @@ fn create_site(m: &Matches) -> Result<()> {
 
     let opener = get_opener(m.opt_present("force"));
 
-    for filename in &[izzet::CONFIG_FILE,
-                      izzet::NOJEKYLL_FILE] {
+    for filename in izzet::SITE_FILES {
         opener.open(dir.join(filename))
               .map_err(|e| format!("fail to create {}: {}", filename, e))?;
     }
 
-    for dirname in &[izzet::FILES_DIR,
-                     izzet::SRC_DIR,
-                     izzet::TEMPLATES_DIR] {
+    for dirname in izzet::SITE_DIRS {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
             .create(dir.join(dirname))
             .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
     }
 
-    for &(filename, html) in &[(izzet::INDEX_FILE,   izzet::INDEX_HTML),
-                               (izzet::POST_FILE,    izzet::INDEX_HTML),
-                               (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)] {
+    for &(filename, html) in izzet::SITE_TEMPLATES {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))
                              .map_err(|e| format!("fail to create {}: {}", filename, e))?;
@@ -70,9 +65,9 @@ fn run(m: Matches) -> Result<()> {
 
     config.force = Some(m.opt_present("force"));
 
-    if m.opt_present("post") {
+    if m.opt_present("article") {
         let link = m.free.get(1)
-            .ok_or(Error::new("fail to get the link of post".to_string()))?;
+            .ok_or(Error::new("fail to get the link of article".to_string()))?;
         post::create_post(link.clone(), config)?;
     }
     else if m.opt_present("gen") {
@@ -92,10 +87,10 @@ fn main() {
 
     // One of these flags should be specified
     opts.optflag("n", "new", "Initialize an empty site at the given location.");
-    opts.optflag("p", "post", "Create a post with the given permalink.");
+    opts.optflag("a", "article", "Create an article with the given permalink.");
     opts.optflag("g", "gen", "Generate site, can be used along with -i and -o \
                               to specify the input and output location.");
-    opts.optflag("f", "force", "Overwrite existing files when creating posts, \
+    opts.optflag("f", "force", "Overwrite existing files when creating articles, \
                                 generating site output files, etc.");
 
     opts.optopt("c", "config", "Run with the given configuration file. By default \
@@ -128,17 +123,17 @@ fn main() {
     }
 
     if !matches.opt_present("new")
-        && !matches.opt_present("post")
+        && !matches.opt_present("article")
         && !matches.opt_present("gen") {
         println!("nothing to do.");
         process::exit(1);
     }
 
-    let mutex_opts = ["new", "post", "gen"];
+    let mutex_opts = ["new", "article", "gen"];
     if mutex_opts.iter()
         .map(|o| matches.opt_present(o) as u32)
         .sum::<u32>() != 1 {
-        eprintln!("only one of `-n', `-p' and `-g' could be specified");
+        eprintln!("only one of `-n', `-a' and `-g' could be specified");
         process::exit(1);
     }
 
