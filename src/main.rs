@@ -4,7 +4,7 @@ extern crate toml;
 
 use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
-use izzet::post::{Post, POST_META_END};
+use izzet::post;
 use izzet::gen;
 use izzet::get_opener;
 use izzet::config::Config;
@@ -23,30 +23,24 @@ fn create_site(m: &Matches) -> Result<()> {
 
     let opener = get_opener(m.opt_present("force"));
 
-    for filename in &[
-        izzet::CONFIG_FILE,
-        izzet::NOJEKYLL_FILE
-    ] {
+    for filename in &[izzet::CONFIG_FILE,
+                      izzet::NOJEKYLL_FILE] {
         opener.open(dir.join(filename))
               .map_err(|e| format!("fail to create {}: {}", filename, e))?;
     }
 
-    for dirname in &[
-        izzet::FILES_DIR,
-        izzet::SRC_DIR,
-        izzet::TEMPLATES_DIR
-    ] {
+    for dirname in &[izzet::FILES_DIR,
+                     izzet::SRC_DIR,
+                     izzet::TEMPLATES_DIR] {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
             .create(dir.join(dirname))
             .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
     }
 
-    for &(filename, html) in &[
-        (izzet::INDEX_FILE,   izzet::INDEX_HTML),
-        (izzet::POST_FILE,    izzet::INDEX_HTML),
-        (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)
-    ] {
+    for &(filename, html) in &[(izzet::INDEX_FILE,   izzet::INDEX_HTML),
+                               (izzet::POST_FILE,    izzet::INDEX_HTML),
+                               (izzet::ARCHIVE_FILE, izzet::ARCHIVE_HTML)] {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))
                              .map_err(|e| format!("fail to create {}: {}", filename, e))?;
@@ -56,58 +50,38 @@ fn create_site(m: &Matches) -> Result<()> {
     Ok(())
 }
 
-fn create_post(m: &Matches) -> Result<()> {
-    let link = m.free.get(1)
-        .ok_or(Error::new("fail to get the link of post".to_string()))?;
-
-    let filename = format!("{}.md", link);
-    let opener = get_opener(m.opt_present("force"));
-    let mut file = opener.open(&filename)
-                         .map_err(|e| format!("fail to create {}: {}", filename, e))?;
-
-    let mut post = Post::new();
-    post.meta.link = link.to_string();
-
-    file.write(toml::to_string(&post.meta)?.as_bytes())?;
-    file.write(POST_META_END.as_bytes())?;
-    file.write(&post.content.as_bytes())?;
-
-    Ok(())
-}
-
-fn generate_site(m: &Matches, config: Config) -> Result<()> {
-    let in_dir = m.opt_str("input")
-        .map(|s| PathBuf::from(s))
-        .unwrap_or(env::current_dir()?);
-    let out_dir = m.opt_str("output")
-        .map(|s| PathBuf::from(s))
-        .unwrap_or(env::current_dir()?);
-
-    gen::generate(config, in_dir, out_dir, m.opt_present("force"))?;
-
-    Ok(())
-}
-
 fn usage(opts: &Options) {
     println!("{}", opts.usage(&format!("usage: {} <options> <args>", PROG_NAME)));
 }
 
 fn run(m: Matches) -> Result<()> {
+    // Note that now we have no configuration file yet
     if m.opt_present("new") {
         create_site(&m)?;
         return Ok(());
     }
 
-    let config = Config::from_file(m.opt_str("c")
-                                    .map(|p| PathBuf::from(p))
-                                    .unwrap_or(env::current_dir()?)
-                                    .join(izzet::CONFIG_FILE))?;
+    // Load config file as a basis which may be overwritten
+    // later by the command-line options.
+    let mut config = Config::from_file(m.opt_str("config")
+                                        .map(|p| PathBuf::from(p))
+                                        .unwrap_or(env::current_dir()?)
+                                        .join(izzet::CONFIG_FILE))?;
+
+    config.force = Some(m.opt_present("force"));
 
     if m.opt_present("post") {
-        create_post(&m)?;
+        let link = m.free.get(1)
+            .ok_or(Error::new("fail to get the link of post".to_string()))?;
+        post::create_post(link.clone(), config)?;
     }
     else if m.opt_present("gen") {
-        generate_site(&m, config)?;
+        config.in_dir = m.opt_str("input")
+            .map(|s| PathBuf::from(s));
+        config.out_dir = m.opt_str("output")
+            .map(|s| PathBuf::from(s));
+
+        gen::generate(config)?;
     }
 
     Ok(())
@@ -116,7 +90,7 @@ fn run(m: Matches) -> Result<()> {
 fn main() {
     let mut opts = Options::new();
 
-    // one of these flags should be specified
+    // One of these flags should be specified
     opts.optflag("n", "new", "Initialize an empty site at the given location.");
     opts.optflag("p", "post", "Create a post with the given permalink.");
     opts.optflag("g", "gen", "Generate site, can be used along with -i and -o \
@@ -154,8 +128,8 @@ fn main() {
     }
 
     if !matches.opt_present("new")
-        && !matches.opt_present("p")
-        && !matches.opt_present("g") {
+        && !matches.opt_present("post")
+        && !matches.opt_present("gen") {
         println!("nothing to do.");
         process::exit(1);
     }

@@ -1,9 +1,11 @@
 use chrono::{DateTime, Local};
+use config::Config;
 use error::Result;
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
 use std::path::PathBuf;
 use std::string::String;
+use std::io::Write;
 use toml;
 
 pub const POST_META_END: &str = "%%%\n";
@@ -76,4 +78,20 @@ impl Post {
             content: String::from_utf8(content)?,
         })
     }
+}
+
+pub fn create_post(link: String, config: Config) -> Result<()> {
+    let filename = format!("{}.md", link);
+    let opener = ::get_opener(config.force.unwrap_or(false));
+    let mut file = opener.open(&filename)
+                         .map_err(|e| format!("fail to create {}: {}", filename, e))?;
+
+    let mut post = Post::new();
+    post.meta.link = link;
+
+    file.write(toml::to_string(&post.meta)?.as_bytes())?;
+    file.write(POST_META_END.as_bytes())?;
+    file.write(&post.content.as_bytes())?;
+
+    Ok(())
 }

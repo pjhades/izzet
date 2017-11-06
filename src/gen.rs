@@ -2,12 +2,17 @@ use chrono::Datelike;
 use config::Config;
 use error::{Error, Result};
 use post::Post;
+use std::env;
 use std::fs::{self, DirBuilder};
 use std::io::Write;
-use std::path::PathBuf;
 use tera::{Context, Tera};
 
-fn output_post(post: &Post, out_dir: &PathBuf, force: bool, content: &[u8]) -> Result<()> {
+fn output_post(post: &Post, config: &Config, content: &[u8]) -> Result<()> {
+    let pwd = env::current_dir()?;
+    let out_dir = config.out_dir
+        .as_ref()
+        .unwrap_or(&pwd);
+
     let dirname = format!("{}/{}/{}",
                           post.meta.ts.year(),
                           post.meta.ts.month(),
@@ -26,7 +31,7 @@ fn output_post(post: &Post, out_dir: &PathBuf, force: bool, content: &[u8]) -> R
         return Err(Error::new(format!("bad output filename {:?}", filename)));
     }
 
-    let mut out = ::get_opener(force)
+    let mut out = ::get_opener(config.force.unwrap_or(false))
         .open(&filename)
         .map_err(|e| format!("fail to create {:?}: {}", &filename, e))?;
 
@@ -35,7 +40,7 @@ fn output_post(post: &Post, out_dir: &PathBuf, force: bool, content: &[u8]) -> R
     Ok(())
 }
 
-fn render_post(tera: &Tera, config: &Config, post: &Post) -> Result<String> {
+fn render_post(post: &Post, config: &Config, tera: &Tera) -> Result<String> {
     let mut ctx = Context::new();
     ctx.add("post", post);
     ctx.add("config", config);
@@ -44,7 +49,13 @@ fn render_post(tera: &Tera, config: &Config, post: &Post) -> Result<String> {
         .map_err(|e| Error::new(format!("fail to render {:?}: {}", post.path, e)))
 }
 
-pub fn generate(config: Config, in_dir: PathBuf, out_dir: PathBuf, force: bool) -> Result<()> {
+pub fn generate(config: Config) -> Result<()> {
+    let pwd = env::current_dir()?;
+
+    let in_dir = config.in_dir
+        .as_ref()
+        .unwrap_or(&pwd);
+
     let tera = Tera::new(in_dir.join(::TEMPLATES_DIR)
                                .join("*")
                                .to_str()
@@ -59,8 +70,8 @@ pub fn generate(config: Config, in_dir: PathBuf, out_dir: PathBuf, force: bool) 
 
         println!("rendering {:?}", &entry.path());
 
-        render_post(&tera, &config, &post)
-            .and_then(|c| output_post(&post, &out_dir, force, c.as_bytes()))?;
+        render_post(&post, &config, &tera)
+            .and_then(|c| output_post(&post, &config, c.as_bytes()))?;
 
         latest_post = match latest_post {
             None => Some(post),
