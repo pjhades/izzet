@@ -15,6 +15,7 @@ pub struct PostMeta {
     pub title: String,
     pub link: String,
     pub ts: DateTime<Local>,
+    pub is_article: bool,
 }
 
 impl Default for PostMeta {
@@ -23,6 +24,7 @@ impl Default for PostMeta {
             title: "Default Title".to_string(),
             link: "default-link".to_string(),
             ts: Local::now(),
+            is_article: true,
         }
     }
 }
@@ -80,7 +82,7 @@ impl Post {
     }
 }
 
-pub fn create_post(link: String, config: Config) -> Result<()> {
+pub fn create_post(link: String, config: Config, is_article: bool) -> Result<()> {
     let filename = format!("{}.md", link);
     let opener = ::get_opener(config.force.unwrap_or(false));
     let mut file = opener.open(&filename)
@@ -88,6 +90,7 @@ pub fn create_post(link: String, config: Config) -> Result<()> {
 
     let mut post = Post::new();
     post.meta.link = link;
+    post.meta.is_article = is_article;
 
     file.write(toml::to_string(&post.meta)?.as_bytes())?;
     file.write(POST_META_END.as_bytes())?;

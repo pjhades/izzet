@@ -35,20 +35,19 @@ pub const SITE_FILES: &[&str] = &[
 ];
 
 pub const SITE_TEMPLATES: &[(&str, &[u8])] = &[
-    (INDEX_FILE,   INDEX_HTML),
-    (POST_FILE,    INDEX_HTML),
+    (POST_FILE,    POST_HTML),
     (ARCHIVE_FILE, ARCHIVE_HTML),
 ];
 
 // HTML for the default template
-pub const INDEX_HTML: &[u8] = b"\
+pub const POST_HTML: &[u8] = b"\
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <h1><a href=\"/\">{{ post.meta.title }}</a></h1>
   <div>
     <div>
       {{ post.content }}
@@ -65,11 +64,11 @@ pub const ARCHIVE_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <h1><a href=\"/\">{{ post.meta.title }}</a></h1>
   <div>
     <ul>
-    {% for post in posts %}
-      <li><a href=\"/\">{{ post.title }}</a></li>
+    {% for post in articles %}
+      <li><a href=\"/\">{{ post.meta.title }}</a></li>
     {% endfor %}
     </ul>
   </div>

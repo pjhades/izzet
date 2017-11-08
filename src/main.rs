@@ -18,7 +18,7 @@ const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn create_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1)
-        .and_then(|s| Some(PathBuf::from(s)))
+        .map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
 
     let opener = get_opener(m.opt_present("force"));
@@ -65,17 +65,14 @@ fn run(m: Matches) -> Result<()> {
 
     config.force = Some(m.opt_present("force"));
 
-    if m.opt_present("article") {
+    if m.opt_present("article") || m.opt_present("page") {
         let link = m.free.get(1)
             .ok_or(Error::new("fail to get the link of article".to_string()))?;
-        post::create_post(link.clone(), config)?;
+        post::create_post(link.clone(), config, m.opt_present("article"))?;
     }
     else if m.opt_present("gen") {
-        config.in_dir = m.opt_str("input")
-            .map(|s| PathBuf::from(s));
-        config.out_dir = m.opt_str("output")
-            .map(|s| PathBuf::from(s));
-
+        config.in_dir = m.opt_str("input");
+        config.out_dir = m.opt_str("output");
         gen::generate(config)?;
     }
 
@@ -88,6 +85,7 @@ fn main() {
     // One of these flags should be specified
     opts.optflag("n", "new", "Initialize an empty site at the given location.");
     opts.optflag("a", "article", "Create an article with the given permalink.");
+    opts.optflag("p", "page", "Create a page with the given permalink.");
     opts.optflag("g", "gen", "Generate site, can be used along with -i and -o \
                               to specify the input and output location.");
     opts.optflag("f", "force", "Overwrite existing files when creating articles, \
@@ -124,12 +122,13 @@ fn main() {
 
     if !matches.opt_present("new")
         && !matches.opt_present("article")
+        && !matches.opt_present("page")
         && !matches.opt_present("gen") {
         println!("nothing to do.");
         process::exit(1);
     }
 
-    let mutex_opts = ["new", "article", "gen"];
+    let mutex_opts = ["new", "article", "gen", "page"];
     if mutex_opts.iter()
         .map(|o| matches.opt_present(o) as u32)
         .sum::<u32>() != 1 {
