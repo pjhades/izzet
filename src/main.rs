@@ -129,12 +129,20 @@ fn main() {
     }
 
     let mutex_opts = ["new", "article", "gen", "page"];
-    if mutex_opts.iter()
-        .map(|o| matches.opt_present(o) as u32)
-        .sum::<u32>() != 1 {
-        eprintln!("only one of `-n', `-a' and `-g' could be specified");
-        process::exit(1);
-    }
+
+    match mutex_opts.iter()
+                    .map(|o| matches.opt_present(o) as u32)
+                    .sum::<u32>() {
+        0 => {
+            println!("nothing to do.");
+            process::exit(1);
+        },
+        1 => (),
+        _ => {
+            eprintln!("only one of `-n', `-a', `-p' and `-g' could be specified");
+            process::exit(1);
+        }
+    };
 
     if let Err(e) = run(matches) {
         eprintln!("{}", e);
