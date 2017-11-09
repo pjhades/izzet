@@ -31,16 +31,32 @@ pub const SITE_DIRS:  &[&str] = &[
 
 pub const SITE_FILES: &[&str] = &[
     NOJEKYLL_FILE,
-    CONFIG_FILE
 ];
 
 pub const SITE_TEMPLATES: &[(&str, &[u8])] = &[
+    (POST_FILE,    POST_HTML),
     (INDEX_FILE,   INDEX_HTML),
-    (POST_FILE,    INDEX_HTML),
     (ARCHIVE_FILE, ARCHIVE_HTML),
 ];
 
 // HTML for the default template
+pub const POST_HTML: &[u8] = b"\
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=\"utf-8\">
+</head>
+<body>
+  <h1><a href=\"/\">{{ post.meta.title }}</a></h1>
+  <div>
+    <div>
+      {{ post.content }}
+    </div>
+  </div>
+</body>
+</html>
+";
+
 pub const INDEX_HTML: &[u8] = b"\
 <!DOCTYPE html>
 <html>
@@ -48,12 +64,14 @@ pub const INDEX_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  {% if latest_article %}
+  <h1><a href=\"/\">{{ latest_article.meta.title }}</a></h1>
   <div>
     <div>
-      {{ post.content }}
+      {{ latest_article.content }}
     </div>
   </div>
+  {% endif %}
 </body>
 </html>
 ";
@@ -68,8 +86,8 @@ pub const ARCHIVE_HTML: &[u8] = b"\
   <h1><a href=\"/\">{{ config.title }}</a></h1>
   <div>
     <ul>
-    {% for post in posts %}
-      <li><a href=\"/\">{{ post.title }}</a></li>
+    {% for article in articles %}
+      <li><a href=\"/\">{{ article.meta.title }}</a></li>
     {% endfor %}
     </ul>
   </div>

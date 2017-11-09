@@ -18,16 +18,26 @@ const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn create_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1)
-        .and_then(|s| Some(PathBuf::from(s)))
+        .map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
 
     let opener = get_opener(m.opt_present("force"));
 
+    // create a default configuration file
+    let config: Config = Default::default();
+    let config = toml::to_string(&config)?;
+    opener.open(dir.join(izzet::CONFIG_FILE))
+          .and_then(|mut f| f.write(config.as_bytes()))
+          .map_err(|e| format!("fail to create {}: {}", izzet::CONFIG_FILE, e))?;
+
+    // create other files
+    // XXX may need to do more things here later
     for filename in izzet::SITE_FILES {
         opener.open(dir.join(filename))
               .map_err(|e| format!("fail to create {}: {}", filename, e))?;
     }
 
+    // create directories
     for dirname in izzet::SITE_DIRS {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
@@ -35,6 +45,7 @@ fn create_site(m: &Matches) -> Result<()> {
             .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
     }
 
+    // create default templates
     for &(filename, html) in izzet::SITE_TEMPLATES {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))
@@ -65,17 +76,14 @@ fn run(m: Matches) -> Result<()> {
 
     config.force = Some(m.opt_present("force"));
 
-    if m.opt_present("article") {
+    if m.opt_present("article") || m.opt_present("page") {
         let link = m.free.get(1)
             .ok_or(Error::new("fail to get the link of article".to_string()))?;
-        post::create_post(link.clone(), config)?;
+        post::create_post(link.clone(), config, m.opt_present("article"))?;
     }
     else if m.opt_present("gen") {
-        config.in_dir = m.opt_str("input")
-            .map(|s| PathBuf::from(s));
-        config.out_dir = m.opt_str("output")
-            .map(|s| PathBuf::from(s));
-
+        config.in_dir = m.opt_str("input");
+        config.out_dir = m.opt_str("output");
         gen::generate(config)?;
     }
 
@@ -88,6 +96,7 @@ fn main() {
     // One of these flags should be specified
     opts.optflag("n", "new", "Initialize an empty site at the given location.");
     opts.optflag("a", "article", "Create an article with the given permalink.");
+    opts.optflag("p", "page", "Create a page with the given permalink.");
     opts.optflag("g", "gen", "Generate site, can be used along with -i and -o \
                               to specify the input and output location.");
     opts.optflag("f", "force", "Overwrite existing files when creating articles, \
@@ -124,18 +133,27 @@ fn main() {
 
     if !matches.opt_present("new")
         && !matches.opt_present("article")
+        && !matches.opt_present("page")
         && !matches.opt_present("gen") {
         println!("nothing to do.");
         process::exit(1);
     }
 
-    let mutex_opts = ["new", "article", "gen"];
-    if mutex_opts.iter()
-        .map(|o| matches.opt_present(o) as u32)
-        .sum::<u32>() != 1 {
-        eprintln!("only one of `-n', `-a' and `-g' could be specified");
-        process::exit(1);
-    }
+    let mutex_opts = ["new", "article", "gen", "page"];
+
+    match mutex_opts.iter()
+                    .map(|o| matches.opt_present(o) as u32)
+                    .sum::<u32>() {
+        0 => {
+            println!("nothing to do.");
+            process::exit(1);
+        },
+        1 => (),
+        _ => {
+            eprintln!("only one of `-n', `-a', `-p' and `-g' could be specified");
+            process::exit(1);
+        }
+    };
 
     if let Err(e) = run(matches) {
         eprintln!("{}", e);
