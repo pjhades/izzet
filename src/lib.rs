@@ -64,11 +64,11 @@ pub const ARCHIVE_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ post.meta.title }}</a></h1>
+  <h1><a href=\"/\">{{ config.title }}</a></h1>
   <div>
     <ul>
-    {% for post in articles %}
-      <li><a href=\"/\">{{ post.meta.title }}</a></li>
+    {% for article in articles %}
+      <li><a href=\"/\">{{ article.meta.title }}</a></li>
     {% endfor %}
     </ul>
   </div>
