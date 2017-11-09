@@ -31,7 +31,6 @@ pub const SITE_DIRS:  &[&str] = &[
 
 pub const SITE_FILES: &[&str] = &[
     NOJEKYLL_FILE,
-    CONFIG_FILE
 ];
 
 pub const SITE_TEMPLATES: &[(&str, &[u8])] = &[

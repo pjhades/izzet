@@ -23,11 +23,21 @@ fn create_site(m: &Matches) -> Result<()> {
 
     let opener = get_opener(m.opt_present("force"));
 
+    // create a default configuration file
+    let config: Config = Default::default();
+    let config = toml::to_string(&config)?;
+    opener.open(dir.join(izzet::CONFIG_FILE))
+          .and_then(|mut f| f.write(config.as_bytes()))
+          .map_err(|e| format!("fail to create {}: {}", izzet::CONFIG_FILE, e))?;
+
+    // create other files
+    // XXX may need to do more things here later
     for filename in izzet::SITE_FILES {
         opener.open(dir.join(filename))
               .map_err(|e| format!("fail to create {}: {}", filename, e))?;
     }
 
+    // create directories
     for dirname in izzet::SITE_DIRS {
         DirBuilder::new()
             .recursive(m.opt_present("force"))
@@ -35,6 +45,7 @@ fn create_site(m: &Matches) -> Result<()> {
             .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
     }
 
+    // create default templates
     for &(filename, html) in izzet::SITE_TEMPLATES {
         let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
                                       .join(filename))

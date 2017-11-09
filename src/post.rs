@@ -41,7 +41,7 @@ impl Default for Post {
         Post {
             meta: Default::default(),
             path: Default::default(),
-            content: "".to_string(),
+            content: String::new(),
         }
     }
 }

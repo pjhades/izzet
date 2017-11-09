@@ -14,6 +14,17 @@ pub struct Config {
     pub title: String,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            force: None,
+            in_dir: None,
+            out_dir: None,
+            title: "Default Title".to_string(),
+        }
+    }
+}
+
 impl Config {
     pub fn from_file<P>(path: P) -> Result<Self>
             where P: AsRef<Path> + Debug {
