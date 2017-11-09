@@ -131,14 +131,6 @@ fn main() {
         return;
     }
 
-    if !matches.opt_present("new")
-        && !matches.opt_present("article")
-        && !matches.opt_present("page")
-        && !matches.opt_present("gen") {
-        println!("nothing to do.");
-        process::exit(1);
-    }
-
     let mutex_opts = ["new", "article", "gen", "page"];
 
     match mutex_opts.iter()
