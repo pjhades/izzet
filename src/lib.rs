@@ -36,6 +36,7 @@ pub const SITE_FILES: &[&str] = &[
 
 pub const SITE_TEMPLATES: &[(&str, &[u8])] = &[
     (POST_FILE,    POST_HTML),
+    (INDEX_FILE,   INDEX_HTML),
     (ARCHIVE_FILE, ARCHIVE_HTML),
 ];
 
@@ -53,6 +54,25 @@ pub const POST_HTML: &[u8] = b"\
       {{ post.content }}
     </div>
   </div>
+</body>
+</html>
+";
+
+pub const INDEX_HTML: &[u8] = b"\
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=\"utf-8\">
+</head>
+<body>
+  {% if latest_article %}
+  <h1><a href=\"/\">{{ latest_article.meta.title }}</a></h1>
+  <div>
+    <div>
+      {{ latest_article.content }}
+    </div>
+  </div>
+  {% endif %}
 </body>
 </html>
 ";

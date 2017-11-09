@@ -21,14 +21,6 @@ fn generate_post(tera: &Tera, base: &Context, config: &Config, post: &Post) -> R
                         .as_ref()
                         .map(|s| PathBuf::from(s))
                         .unwrap_or(env::current_dir()?);
-
-    if post.meta.is_article {
-        println!("generating article {:?}", post.path);
-    }
-    else {
-        println!("generating page {:?}", post.path);
-    }
-
     let mut ctx = Context::new();
     ctx.extend(base.clone());
     ctx.add("post", post);
@@ -88,19 +80,25 @@ pub fn generate(config: Config) -> Result<()> {
     ctx.add("articles", &articles);
     ctx.add("pages", &pages);
     ctx.add("config", &config);
+    if let Some(p) = articles.first() {
+        ctx.add("latest_article", p);
+    }
 
     // generate articles and pages
     for post in articles.iter().chain(pages.iter()) {
+        println!("generating {:?}", post.path);
         generate_post(&tera, &ctx, &config, &post)?;
     }
 
-    // generate archive
-    println!("generating {}", ::ARCHIVE_FILE);
-    tera.render(::ARCHIVE_FILE, &ctx)
-        .map_err(|e| Error::new(format!("fail to generate {}: {}", ::ARCHIVE_FILE, e)))
-        .and_then(|rendered| write_file(PathBuf::from(::ARCHIVE_FILE),
-                                        &config,
-                                        rendered.as_bytes()))?;
+    // generate index
+    for file in &[::INDEX_FILE, ::ARCHIVE_FILE] {
+        println!("generating {}", file);
+        tera.render(file, &ctx)
+            .map_err(|e| Error::new(format!("fail to generate {}: {}", file, e)))
+            .and_then(|rendered| write_file(PathBuf::from(file),
+                                            &config,
+                                            rendered.as_bytes()))?;
+    }
 
     Ok(())
 }
