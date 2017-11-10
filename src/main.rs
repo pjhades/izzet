@@ -60,9 +60,9 @@ fn usage(opts: &Options) {
     println!("{}", opts.usage(&format!("usage: {} <options> <args>", PROG_NAME)));
 }
 
-fn run(m: Matches) -> Result<()> {
+fn run(m: Matches, action: &str) -> Result<()> {
     // Note that now we have no configuration file yet
-    if m.opt_present("new") {
+    if action == "new" {
         create_site(&m)?;
         return Ok(());
     }
@@ -76,15 +76,29 @@ fn run(m: Matches) -> Result<()> {
 
     config.force = Some(m.opt_present("force"));
 
-    if m.opt_present("article") || m.opt_present("page") {
-        let link = m.free.get(1)
-            .ok_or(Error::new("fail to get the link of article".to_string()))?;
-        post::create_post(link.clone(), config, m.opt_present("article"))?;
-    }
-    else if m.opt_present("gen") {
-        config.in_dir = m.opt_str("input");
-        config.out_dir = m.opt_str("output");
-        gen::generate(config)?;
+    match action {
+        "article" => {
+            let link = m.free.get(1)
+                .ok_or(Error::new("need the link of the article".to_string()))?;
+            post::create_post(link.clone(), config, true)?;
+        },
+
+        "page" => {
+            let link = m.free.get(1)
+                .ok_or(Error::new("need the link of the page".to_string()))?;
+            post::create_post(link.clone(), config, false)?;
+        },
+
+        "gen" => {
+            config.in_dir = m.opt_str("input");
+            config.out_dir = m.opt_str("output");
+            gen::generate(config)?;
+        },
+
+        _ => {
+            eprintln!("unknown action {}", action);
+            process::exit(1);
+        }
     }
 
     Ok(())
@@ -132,23 +146,25 @@ fn main() {
     }
 
     let mutex_opts = ["new", "article", "gen", "page"];
+    let action = mutex_opts
+        .iter()
+        .filter(|o| matches.opt_present(o))
+        .collect::<Vec<_>>();
 
-    match mutex_opts.iter()
-                    .map(|o| matches.opt_present(o) as u32)
-                    .sum::<u32>() {
+    match action.len() {
         0 => {
-            println!("nothing to do.");
-            process::exit(1);
+            println!("nothing to do");
+            return;
         },
-        1 => (),
+        1 => {
+            if let Err(e) = run(matches, action.first().unwrap()) {
+                eprintln!("{}", e);
+                process::exit(1);
+            }
+        },
         _ => {
             eprintln!("only one of `-n', `-a', `-p' and `-g' could be specified");
             process::exit(1);
         }
-    };
-
-    if let Err(e) = run(matches) {
-        eprintln!("{}", e);
-        process::exit(1);
     }
 }
