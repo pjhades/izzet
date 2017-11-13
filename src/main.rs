@@ -4,9 +4,7 @@ extern crate toml;
 
 use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
-use izzet::post;
-use izzet::gen;
-use izzet::get_opener;
+use izzet::{gen, post, server};
 use izzet::config::Config;
 use std::env;
 use std::fs::DirBuilder;
@@ -21,7 +19,7 @@ fn create_site(m: &Matches) -> Result<()> {
         .map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
 
-    let opener = get_opener(m.opt_present("force"));
+    let opener = izzet::get_opener(m.opt_present("force"));
 
     // create a default configuration file
     let config: Config = Default::default();
@@ -80,7 +78,7 @@ fn run(m: Matches, action: &str) -> Result<()> {
         "article" => {
             let link = m.free.get(1)
                 .ok_or(Error::new("need the link of the article".to_string()))?;
-            post::create_post(link.clone(), config, true)?;
+            post::create_post(link.to_string(), config, true)?;
         },
 
         "page" => {
@@ -93,6 +91,13 @@ fn run(m: Matches, action: &str) -> Result<()> {
             config.in_dir = m.opt_str("input");
             config.out_dir = m.opt_str("output");
             gen::generate(config)?;
+        },
+
+        "server" => {
+            let dir = m.free.get(1)
+                .map(PathBuf::from)
+                .unwrap_or(env::current_dir()?);
+            server::forever(dir, config)?;
         },
 
         _ => {
@@ -113,6 +118,8 @@ fn main() {
     opts.optflag("p", "page", "Create a page with the given permalink.");
     opts.optflag("g", "gen", "Generate site, can be used along with -i and -o \
                               to specify the input and output location.");
+    opts.optflag("s", "server", "Start a local server to preview the generated site \
+                                 specified by a directory.");
     opts.optflag("f", "force", "Overwrite existing files when creating articles, \
                                 generating site output files, etc.");
 
@@ -123,6 +130,7 @@ fn main() {
                               directory by default.", "INPUT");
     opts.optopt("o", "output", "Output site directory. Write to current directory \
                                by default.", "OUTPUT");
+    opts.optopt("l", "listen", "Port on which the local server will listen.", "PORT");
 
     opts.optflag("h", "help", "Show this help message.");
     opts.optflag("V", "version", "Display version information.");
@@ -145,7 +153,7 @@ fn main() {
         return;
     }
 
-    let mutex_opts = ["new", "article", "gen", "page"];
+    let mutex_opts = ["new", "article", "gen", "page", "server"];
     let action = mutex_opts
         .iter()
         .filter(|o| matches.opt_present(o))
@@ -163,7 +171,7 @@ fn main() {
             }
         },
         _ => {
-            eprintln!("only one of `-n', `-a', `-p' and `-g' could be specified");
+            eprintln!("only one of `-n', `-a', `-p', `-s' and `-g' could be specified");
             process::exit(1);
         }
     }

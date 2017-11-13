@@ -10,7 +10,7 @@ pub struct Config {
     pub force: Option<bool>,
     pub in_dir: Option<String>,
     pub out_dir: Option<String>,
-
+    pub port: Option<u16>,
     pub title: String,
 }
 
@@ -20,6 +20,7 @@ impl Default for Config {
             force: None,
             in_dir: None,
             out_dir: None,
+            port: None,
             title: "Default Title".to_string(),
         }
     }

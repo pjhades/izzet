@@ -2,6 +2,7 @@ extern crate chrono;
 #[macro_use]
 extern crate serde_derive;
 extern crate tera;
+extern crate tiny_http;
 extern crate toml;
 
 use std::fs::OpenOptions;
@@ -10,6 +11,9 @@ pub mod config;
 pub mod error;
 pub mod gen;
 pub mod post;
+pub mod server;
+
+pub const DEFAULT_PORT: u16 = 10950;
 
 pub const CONFIG_FILE:   &str = ".izzetconfig";
 // XXX this should be made configurable
