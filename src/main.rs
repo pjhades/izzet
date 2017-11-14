@@ -97,6 +97,8 @@ fn run(m: Matches, action: &str) -> Result<()> {
             let dir = m.free.get(1)
                 .map(PathBuf::from)
                 .unwrap_or(env::current_dir()?);
+            config.port = m.opt_str("listen")
+                .and_then(|s| s.parse::<u16>().ok());
             server::forever(dir, config)?;
         },
 
