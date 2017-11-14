@@ -56,3 +56,15 @@ impl From<string::FromUtf8Error> for Error {
         Error { msg: e.to_string() }
     }
 }
+
+impl From<Box<::std::error::Error + Send + Sync + 'static>> for Error {
+    fn from(e: Box<::std::error::Error + Send + Sync + 'static>) -> Self {
+        Error { msg: e.to_string() }
+    }
+}
+
+impl From<()> for Error {
+    fn from(_: ()) -> Self {
+        Error { msg: "error from tiny_http header parsing".to_string() }
+    }
+}
