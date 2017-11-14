@@ -8,7 +8,7 @@ use std::string::String;
 use std::io::Write;
 use toml;
 
-pub const POST_META_END: &str = "%%%\n";
+const POST_META_END: &str = "%%%\n";
 
 #[derive(Serialize, Deserialize)]
 pub struct PostMeta {
