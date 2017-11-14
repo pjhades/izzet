@@ -22,7 +22,7 @@ pub const INDEX_FILE:    &str = "index.html";
 pub const POST_FILE:     &str = "post.html";
 pub const ARCHIVE_FILE:  &str = "archive.html";
 pub const FILES_DIR:     &str = "files";
-pub const ARTICLES_DIR:   &str = "articles";
+pub const ARTICLES_DIR:  &str = "articles";
 pub const PAGES_DIR:     &str = "pages";
 pub const TEMPLATES_DIR: &str = "templates";
 
@@ -52,10 +52,14 @@ pub const POST_HTML: &[u8] = b"\
 </head>
 <body>
   <h1><a href=\"/\">{{ post.meta.title }}</a></h1>
+  <h3>{{ post.meta.ts | date(format=\"%Y-%b-%d\") }}</h3>
   <div>
     <div>
       {{ post.content }}
     </div>
+  </div>
+  <div>
+    <a href=\"/\">Home</a>
   </div>
 </body>
 </html>
@@ -68,8 +72,25 @@ pub const INDEX_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
+  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <div>
+    <ul>
+      <li><a href=\"/\">Home</a></li>
+      <li><a href=\"/archive.html\">Archive</a></li>
+      {% for page in pages %}
+        <li><a href=\"/{{ page.meta.link }}.html\">{{ page.meta.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
   {% if latest_article %}
-  <h1><a href=\"/\">{{ latest_article.meta.title }}</a></h1>
+  <h2>
+    <a href=\"/{{ latest_article.meta.ts | date(format=\"%Y/%m/%d\") }}/{{ latest_article.meta.link }}.html\">
+    {{ latest_article.meta.title }}
+    </a>
+  </h2>
+  <div>
+    <h3>{{ latest_article.meta.ts | date(format=\"%Y-%b-%d\") }}</h3>
+  </div>
   <div>
     <div>
       {{ latest_article.content }}
@@ -91,7 +112,12 @@ pub const ARCHIVE_HTML: &[u8] = b"\
   <div>
     <ul>
     {% for article in articles %}
-      <li><a href=\"/\">{{ article.meta.title }}</a></li>
+    <li>
+      <span>{{ article.meta.ts | date(format=\"%Y-%b-%d\") }}</span>
+      <a href=\"/{{ article.meta.ts | date(format=\"%Y/%m/%d\") }}/{{ article.meta.link }}.html\">
+      {{ article.meta.title }}
+      </a>
+    </li>
     {% endfor %}
     </ul>
   </div>
