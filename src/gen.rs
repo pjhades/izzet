@@ -55,11 +55,13 @@ pub fn generate(config: Config) -> Result<()> {
                        .unwrap_or(env::current_dir()?);
 
     // compile templates
-    let tera = Tera::new(in_dir.join(::TEMPLATES_DIR)
-                               .join("*")
-                               .to_str()
-                               .ok_or(Error::new("cannot get templates".to_string()))?)
+    let mut tera = Tera::new(in_dir.join(::TEMPLATES_DIR)
+                                   .join("*")
+                                   .to_str()
+                                   .ok_or(Error::new("cannot get templates".to_string()))?)
         .map_err(|e| format!("compile templates fails: {}", e))?;
+    // turn off auto escaping
+    tera.autoescape_on(vec![]);
 
     // gather articles
     let mut articles = vec![];
