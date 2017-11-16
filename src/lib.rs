@@ -23,16 +23,15 @@ pub const NOJEKYLL_FILE: &str = ".nojekyll";
 pub const INDEX_FILE:    &str = "index.html";
 pub const POST_FILE:     &str = "post.html";
 pub const ARCHIVE_FILE:  &str = "archive.html";
+
 pub const FILES_DIR:     &str = "files";
-pub const ARTICLES_DIR:  &str = "articles";
-pub const PAGES_DIR:     &str = "pages";
-pub const TEMPLATES_DIR: &str = "templates";
+pub const SRC_DIR:       &str = "src";
+pub const THEME_DIR:     &str = "theme";
 
 pub const SITE_DIRS:  &[&str] = &[
     FILES_DIR,
-    ARTICLES_DIR,
-    PAGES_DIR,
-    TEMPLATES_DIR
+    SRC_DIR,
+    THEME_DIR,
 ];
 
 pub const SITE_FILES: &[&str] = &[

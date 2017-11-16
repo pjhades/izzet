@@ -55,7 +55,7 @@ pub fn generate(config: Config) -> Result<()> {
                        .unwrap_or(env::current_dir()?);
 
     // compile templates
-    let mut tera = Tera::new(in_dir.join(::TEMPLATES_DIR)
+    let mut tera = Tera::new(in_dir.join(::THEME_DIR)
                                    .join("*")
                                    .to_str()
                                    .ok_or(Error::new("cannot get templates".to_string()))?)
@@ -63,18 +63,19 @@ pub fn generate(config: Config) -> Result<()> {
     // turn off auto escaping
     tera.autoescape_on(vec![]);
 
-    // gather articles
+    // gather posts
     let mut articles = vec![];
-    for entry in fs::read_dir(in_dir.join(::ARTICLES_DIR))? {
-        articles.push(Post::from_file(&entry?.path())?);
+    let mut pages = vec![];
+    for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
+        let post = Post::from_file(&entry?.path())?;
+        if post.meta.is_article {
+            articles.push(post);
+        }
+        else {
+            pages.push(post);
+        }
     }
     articles.sort_by(|x, y| y.meta.ts.cmp(&x.meta.ts));
-
-    // gather pages
-    let mut pages = vec![];
-    for entry in fs::read_dir(in_dir.join(::PAGES_DIR))? {
-        pages.push(Post::from_file(&entry?.path())?);
-    }
     pages.sort_by(|x, y| y.meta.ts.cmp(&x.meta.ts));
 
     // prepare context

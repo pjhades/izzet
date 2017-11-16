@@ -45,7 +45,7 @@ fn create_site(m: &Matches) -> Result<()> {
 
     // create default templates
     for &(filename, html) in izzet::SITE_TEMPLATES {
-        let mut file = opener.open(dir.join(izzet::TEMPLATES_DIR)
+        let mut file = opener.open(dir.join(izzet::THEME_DIR)
                                       .join(filename))
                              .map_err(|e| format!("fail to create {}: {}", filename, e))?;
         file.write(html)?;
