@@ -1,9 +1,11 @@
 use chrono::{DateTime, Local};
 use config::Config;
 use error::Result;
+use markdown;
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader};
 use std::path::PathBuf;
+use std::str;
 use std::string::String;
 use std::io::Write;
 use toml;
@@ -77,12 +79,13 @@ impl Post {
         Ok(Post {
             meta,
             path: path.clone(),
-            content: String::from_utf8(content)?,
+            content: markdown::markdown_to_html(str::from_utf8(&content)?)?,
         })
     }
 }
 
 pub fn create_post(link: String, config: Config, is_article: bool) -> Result<()> {
+    // XXX should support other markup languages
     let filename = format!("{}.md", link);
     let opener = ::get_opener(config.force.unwrap_or(false));
     let mut file = opener.open(&filename)

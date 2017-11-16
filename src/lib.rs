@@ -1,4 +1,5 @@
 extern crate chrono;
+extern crate pulldown_cmark;
 #[macro_use]
 extern crate serde_derive;
 extern crate tera;
@@ -10,6 +11,7 @@ use std::fs::OpenOptions;
 pub mod config;
 pub mod error;
 pub mod gen;
+pub mod markdown;
 pub mod post;
 pub mod server;
 
