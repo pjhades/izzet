@@ -48,13 +48,30 @@ fn generate_post(tera: &Tera, base: &Context, config: &Config, post: &Post) -> R
     write_file(filename, config, rendered.as_bytes())
 }
 
+fn generate_site_page(tera: &Tera, ctx: &Context, config: &Config) -> Result<()> {
+    let out_dir = config.out_dir
+                        .as_ref()
+                        .map(|s| PathBuf::from(s))
+                        .unwrap_or(env::current_dir()?);
+
+    for file in &[::INDEX_FILE, ::ARCHIVE_FILE] {
+        let out_path = out_dir.as_path().join(&file);
+        println!("generating {:?}", out_path);
+        tera.render(file, &ctx)
+            .map_err(|e| Error::new(format!("fail to generate {:?}: {}", out_path, e)))
+            .and_then(|rendered| write_file(out_path, &config, rendered.as_bytes()))?;
+    }
+
+    Ok(())
+}
+
+
 pub fn generate(config: Config) -> Result<()> {
     let in_dir = config.in_dir
                        .as_ref()
                        .map(|s| PathBuf::from(s))
                        .unwrap_or(env::current_dir()?);
 
-    // compile templates
     let mut tera = Tera::new(in_dir.join(::THEME_DIR)
                                    .join("*")
                                    .to_str()
@@ -63,7 +80,6 @@ pub fn generate(config: Config) -> Result<()> {
     // turn off auto escaping
     tera.autoescape_on(vec![]);
 
-    // gather posts
     let mut articles = vec![];
     let mut pages = vec![];
     for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
@@ -78,7 +94,6 @@ pub fn generate(config: Config) -> Result<()> {
     articles.sort_by(|x, y| y.meta.ts.cmp(&x.meta.ts));
     pages.sort_by(|x, y| y.meta.ts.cmp(&x.meta.ts));
 
-    // prepare context
     let mut ctx = Context::new();
     ctx.add("articles", &articles);
     ctx.add("pages", &pages);
@@ -87,21 +102,12 @@ pub fn generate(config: Config) -> Result<()> {
         ctx.add("latest_article", p);
     }
 
-    // generate articles and pages
     for post in articles.iter().chain(pages.iter()) {
         println!("generating {:?}", post.path);
         generate_post(&tera, &ctx, &config, &post)?;
     }
 
-    // generate index
-    for file in &[::INDEX_FILE, ::ARCHIVE_FILE] {
-        println!("generating {}", file);
-        tera.render(file, &ctx)
-            .map_err(|e| Error::new(format!("fail to generate {}: {}", file, e)))
-            .and_then(|rendered| write_file(PathBuf::from(file),
-                                            &config,
-                                            rendered.as_bytes()))?;
-    }
+    generate_site_page(&tera, &ctx, &config)?;
 
     Ok(())
 }
