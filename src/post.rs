@@ -60,7 +60,7 @@ impl Post {
 
         // parse metadata
         let mut meta = "".to_string();
-        let mut line = "".to_string();;
+        let mut line = "".to_string();
         while line != POST_META_END {
             meta += &line;
             line.clear();

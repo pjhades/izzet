@@ -62,7 +62,7 @@ fn create_site(m: &Matches) -> Result<()> {
 }
 
 fn usage(opts: &Options) {
-    println!("{}", opts.usage(&format!("usage: {} <options> <args>", PROG_NAME)));
+    println!("{}", opts.usage(&format!("Usage: {} <options> <args>", PROG_NAME)));
 }
 
 fn run(m: Matches, action: &str) -> Result<()> {
@@ -132,9 +132,9 @@ fn main() {
     opts.optflag("f", "force", "Overwrite existing files when creating articles, \
                                 generating site output files, etc.");
 
-    opts.optopt("c", "config", "Run with the given configuration file. By default \
-                                configuration file will be looked for under the \
-                                current directory.", "CONFIG");
+    opts.optopt("c", "config", "Search for configuration file at the specified \
+                                directory. By default the configuration file will be \
+                                looked for under the current directory.", "CONFIG");
     opts.optopt("i", "input", "Input site directory. Read input files from current \
                               directory by default.", "INPUT");
     opts.optopt("o", "output", "Output site directory. Write to current directory \
