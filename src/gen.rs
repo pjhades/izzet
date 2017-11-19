@@ -29,13 +29,13 @@ fn generate_post(tera: &Tera, base: &Context, config: &Config, post: &Post) -> R
         .map_err(|e| Error::new(format!("fail to generate {:?}: {}", post.path, e)))?;
 
     let mut filename = if post.meta.is_article {
-        let dir = post.meta.ts.format("%Y/%m/%d").to_string();
+        let path = post.meta.ts.format("%Y/%m/%d").to_string();
+        let path = out_dir.join(path);
         DirBuilder::new()
             .recursive(true)
-            .create(&dir)
-            .map_err(|e| format!("fail to create {}: {}", &dir, e))?;
-
-        out_dir.join(&dir).join(&post.meta.link)
+            .create(&path)
+            .map_err(|e| format!("fail to create {:?}: {}", &path, e))?;
+        path.join(&post.meta.link)
     }
     else {
         out_dir.join(&post.meta.link)
