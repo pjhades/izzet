@@ -19,6 +19,13 @@ fn create_site(m: &Matches) -> Result<()> {
         .map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
 
+    if !PathBuf::from(&dir).exists() {
+        DirBuilder::new()
+            .recursive(false)
+            .create(&dir)
+            .map_err(|e| format!("fail to create {:?}: {}", &dir, e))?;
+    }
+
     let opener = izzet::get_opener(m.opt_present("force"));
 
     // create a default configuration file
