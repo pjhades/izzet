@@ -9,6 +9,9 @@ trap clean_site EXIT
 
 clean_site() {
     rm -rf $SITE
+    if pgrep izzet; then
+        pkill izzet
+    fi
 }
 
 assert_site_files() {
@@ -31,7 +34,7 @@ test_create_new_site() {
     cd $SITE
     $IZZET -n
     assert_site_files
-    cd ..
+    cd - >/dev/null
 
     ! $IZZET -n $SITE &>/dev/null
     $IZZET -n -f $SITE
@@ -56,11 +59,11 @@ test_create_post() {
     $IZZET -p -f p
 
     clean_site
-    cd ..
+    cd - >/dev/null
     echo 'ok'
 }
 
-test_generate_site() {
+test_generate_site_and_local_server() {
     echo -n "${FUNCNAME[0]} ... "
 
     $IZZET -n $SITE
@@ -74,6 +77,23 @@ test_generate_site() {
     ! $IZZET -c $SITE -g -i $SITE -o $SITE &>/dev/null
     $IZZET -c $SITE -g -f -i $SITE -o $SITE &>/dev/null
 
+    cd $SITE
+    local ts=($(find . -mindepth 4 -type f -a -name '*.html' | \
+          awk -F'/' '{print $2,$3,$4}'))
+    cd - >/dev/null
+    local year=${ts[0]}
+    local month=${ts[1]}
+    local day=${ts[2]}
+
+    $IZZET -c $SITE -s $SITE -l 9999 >/dev/null &
+    local server=$!
+    curl --silent --fail 0.0.0.0:9999/index.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/archive.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/p.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/$year/$month/$day/a.html >/dev/null
+    kill $server
+    wait $server &>/dev/null || :
+
     clean_site
     echo 'ok'
 }
@@ -81,7 +101,7 @@ test_generate_site() {
 main() {
     test_create_new_site
     test_create_post
-    test_generate_site
+    test_generate_site_and_local_server
 }
 
 main
