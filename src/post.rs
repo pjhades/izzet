@@ -41,7 +41,7 @@ pub struct Post {
 impl Default for Post {
     fn default() -> Self {
         Post {
-            meta: Default::default(),
+            meta: PostMeta::default(),
             path: Default::default(),
             content: String::new(),
         }
@@ -50,7 +50,7 @@ impl Default for Post {
 
 impl Post {
     pub fn new() -> Self {
-        Post { ..Default::default() }
+        Post::default()
     }
 
     pub fn from_file(path: &PathBuf) -> Result<Self> {
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_post() {
         let just_now = Local::now();
-        let meta = PostMeta { ..PostMeta::default() };
+        let meta = PostMeta::default();
         assert!(&meta.title == "Default Title");
         assert!(&meta.link == "default-link");
         assert!(just_now < meta.ts && meta.ts < Local::now());
@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_create_post() {
-        let mut config = Config { ..Config::default() };
+        let mut config = Config::default();
         config.force = Some(true);
 
         let filename = "test-link";
