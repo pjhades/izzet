@@ -101,3 +101,45 @@ pub fn create_post(link: String, config: Config, is_article: bool) -> Result<()>
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::std::fs;
+
+    #[test]
+    fn test_post() {
+        let just_now = Local::now();
+        let meta = PostMeta { ..PostMeta::default() };
+        assert!(&meta.title == "Default Title");
+        assert!(&meta.link == "default-link");
+        assert!(just_now < meta.ts && meta.ts < Local::now());
+        assert!(meta.is_article);
+    }
+
+    #[test]
+    fn test_create_post() {
+        let mut config = Config { ..Config::default() };
+        config.force = Some(true);
+
+        let filename = "test-link";
+        let just_now = Local::now();
+
+        create_post(filename.to_string(), config, true).unwrap();
+        let mut path = PathBuf::from(filename);
+        path.set_extension("md");
+
+        let mut file = fs::OpenOptions::new().append(true).open(&path).unwrap();
+        file.write(b"content").unwrap();
+
+        let post = Post::from_file(&path).unwrap();
+        assert!(&post.meta.title == "Default Title");
+        assert!(&post.meta.link == "test-link");
+        assert!(just_now < post.meta.ts && post.meta.ts < Local::now());
+        assert!(post.meta.is_article);
+        assert!(post.path == path);
+        assert!(post.content == markdown::markdown_to_html("content").unwrap());
+
+        fs::remove_file(path).unwrap();
+    }
+}
