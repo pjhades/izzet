@@ -85,12 +85,13 @@ test_generate_site_and_local_server() {
     local month=${ts[1]}
     local day=${ts[2]}
 
-    $IZZET -c $SITE -s $SITE -l 9999 >/dev/null &
+    local port=$((RANDOM%10000+40000))
+    $IZZET -c $SITE -s $SITE -l $port >/dev/null &
     local server=$!
-    curl --silent --fail 0.0.0.0:9999/index.html >/dev/null
-    curl --silent --fail 0.0.0.0:9999/archive.html >/dev/null
-    curl --silent --fail 0.0.0.0:9999/p.html >/dev/null
-    curl --silent --fail 0.0.0.0:9999/$year/$month/$day/a.html >/dev/null
+    curl --silent --fail 0.0.0.0:$port/index.html >/dev/null
+    curl --silent --fail 0.0.0.0:$port/archive.html >/dev/null
+    curl --silent --fail 0.0.0.0:$port/p.html >/dev/null
+    curl --silent --fail 0.0.0.0:$port/$year/$month/$day/a.html >/dev/null
     kill $server
     wait $server &>/dev/null || :
 
