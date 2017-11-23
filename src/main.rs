@@ -80,6 +80,9 @@ fn run(m: Matches, action: &str) -> Result<()> {
                                         .join(izzet::CONFIG_FILE))?;
 
     config.force = Some(m.opt_present("force"));
+    if let None = config.title {
+        config.title = Some("Default title".to_string());
+    }
 
     match action {
         "article" => {

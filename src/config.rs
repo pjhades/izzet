@@ -11,7 +11,7 @@ pub struct Config {
     pub in_dir: Option<String>,
     pub out_dir: Option<String>,
     pub port: Option<u16>,
-    pub title: String,
+    pub title: Option<String>,
 }
 
 impl Default for Config {
@@ -21,7 +21,7 @@ impl Default for Config {
             in_dir: None,
             out_dir: None,
             port: None,
-            title: "Default Title".to_string(),
+            title: None,
         }
     }
 }
@@ -61,7 +61,7 @@ mod tests {
         assert!(c.in_dir == Some(".".to_string()));
         assert!(c.out_dir == None);
         assert!(c.port == Some(9999));
-        assert!(c.title == "title".to_string());
+        assert!(c.title == Some("title".to_string()));
 
         fs::remove_file(p).unwrap();
     }
