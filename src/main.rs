@@ -29,7 +29,7 @@ fn create_site(m: &Matches) -> Result<()> {
     let opener = izzet::get_opener(m.opt_present("force"));
 
     // create a default configuration file
-    let config: Config = Default::default();
+    let config: Config = Config::default();
     let config = toml::to_string(&config)?;
     opener.open(dir.join(izzet::CONFIG_FILE))
           .and_then(|mut f| f.write(config.as_bytes()))

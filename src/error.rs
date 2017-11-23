@@ -2,6 +2,7 @@ use std::{fmt, io, result, string};
 use tera;
 use toml;
 
+#[derive(Debug)]
 pub struct Error {
     msg: String
 }
