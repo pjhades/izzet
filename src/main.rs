@@ -79,7 +79,9 @@ fn run(m: Matches, action: &str) -> Result<()> {
                                         .unwrap_or(env::current_dir()?)
                                         .join(izzet::CONFIG_FILE))?;
 
-    config.force = Some(m.opt_present("force"));
+    if m.opt_present("force") {
+        config.force = Some(true)
+    }
     if let None = config.title {
         config.title = Some("Default title".to_string());
     }
