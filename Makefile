@@ -1,10 +1,15 @@
-all:
+release:
 	cargo build --release
+debug:
+	cargo build
 
-test:
-	bash tests/integration.sh
+test: unit integration
+unit:
+	cargo test
+integration:
+	BUILD=$(BUILD) bash tests/integration.sh
 
 clean:
 	cargo clean
 
-.PHONY: all, test, clean
+.PHONY: release, debug, test, unit, integration, clean
