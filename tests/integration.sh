@@ -3,7 +3,7 @@
 set -o errexit -o nounset -o pipefail
 
 IZZET="$(pwd)/target/${BUILD:-release}/izzet"
-SITE="/tmp/izzet_temp"
+SITE=$(mktemp -d /tmp/izzet_temp.XXXXXX)
 
 trap clean_site EXIT
 
