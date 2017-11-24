@@ -4,58 +4,42 @@ extern crate toml;
 
 use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
-use izzet::{gen, post, server};
+use izzet::{files, post, server};
 use izzet::config::Config;
+use izzet::site::Site;
+use post::PostKind;
 use std::env;
-use std::fs::DirBuilder;
-use std::path::PathBuf;
+use std::fs::create_dir_all;
+use std::path::{Path, PathBuf};
 use std::process;
-use std::io::Write;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn create_site(m: &Matches) -> Result<()> {
-    let dir = m.free.get(1)
-        .map(|s| PathBuf::from(s))
+    let force = m.opt_present("force");
+    let dir = m.free.get(1).map(|s| PathBuf::from(s))
         .unwrap_or(env::current_dir()?);
 
-    if !PathBuf::from(&dir).exists() {
-        DirBuilder::new()
-            .recursive(false)
-            .create(&dir)
-            .map_err(|e| format!("fail to create {:?}: {}", &dir, e))?;
+    if !Path::new(&dir).exists() {
+        create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", &dir, e))?;
     }
 
-    let opener = izzet::get_opener(m.opt_present("force"));
+    for d in izzet::SITE_DIRS {
+        let p = dir.join(d);
+        create_dir_all(&p)
+            .map_err(|e| format!("error creating {:?}: {}", p, e))?;
+    }
 
-    // create a default configuration file
     let config: Config = Config::default();
     let config = toml::to_string(&config)?;
-    opener.open(dir.join(izzet::CONFIG_FILE))
-          .and_then(|mut f| f.write(config.as_bytes()))
-          .map_err(|e| format!("fail to create {}: {}", izzet::CONFIG_FILE, e))?;
+    files::fwrite(&dir.join(izzet::CONFIG_FILE), config.as_bytes(), force)?;
 
-    // create other files
-    // XXX may need to do more things here later
-    for filename in izzet::SITE_FILES {
-        opener.open(dir.join(filename))
-              .map_err(|e| format!("fail to create {}: {}", filename, e))?;
+    for f in izzet::SITE_FILES {
+        files::fwrite(&dir.join(f), &[], force)?;
     }
 
-    // create directories
-    for dirname in izzet::SITE_DIRS {
-        DirBuilder::new()
-            .recursive(m.opt_present("force"))
-            .create(dir.join(dirname))
-            .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
-    }
-
-    // create default templates
-    for &(filename, html) in izzet::SITE_TEMPLATES {
-        let mut file = opener.open(dir.join(izzet::THEME_DIR)
-                                      .join(filename))
-                             .map_err(|e| format!("fail to create {}: {}", filename, e))?;
-        file.write(html)?;
+    for &(f, html) in izzet::SITE_TEMPLATES {
+        files::fwrite(&dir.join(izzet::THEME_DIR).join(f), html, force)?;
     }
 
     Ok(())
@@ -90,19 +74,19 @@ fn run(m: Matches, action: &str) -> Result<()> {
         "article" => {
             let link = m.free.get(1)
                 .ok_or(Error::new("need the link of the article".to_string()))?;
-            post::create_post(link.to_string(), config, true)?;
+            post::create_post(link.to_string(), config, PostKind::Article)?;
         },
 
         "page" => {
             let link = m.free.get(1)
                 .ok_or(Error::new("need the link of the page".to_string()))?;
-            post::create_post(link.clone(), config, false)?;
+            post::create_post(link.clone(), config, PostKind::Page)?;
         },
 
         "gen" => {
             config.in_dir = m.opt_str("input");
             config.out_dir = m.opt_str("output");
-            gen::generate(config)?;
+            Site::collect(&config).and_then(|s| s.generate(&config))?;
         },
 
         "server" => {

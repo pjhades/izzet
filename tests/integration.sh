@@ -9,9 +9,7 @@ trap clean_site EXIT
 
 clean_site() {
     rm -rf $SITE
-    if pgrep izzet; then
-        pkill izzet
-    fi
+    pkill izzet || :
 }
 
 assert_site_files() {
@@ -19,7 +17,6 @@ assert_site_files() {
     test -f $SITE/.izzetconfig
     test -d $SITE/src
     test -d $SITE/theme
-    test -d $SITE/files
 }
 
 test_create_new_site() {
@@ -85,13 +82,15 @@ test_generate_site_and_local_server() {
     local month=${ts[1]}
     local day=${ts[2]}
 
-    local port=$((RANDOM%10000+40000))
-    $IZZET -c $SITE -s $SITE -l $port >/dev/null &
+    $IZZET -c $SITE -s $SITE -l 9999 >/dev/null &
+    while ! pgrep izzet &>/dev/null; do
+        sleep 0.5
+    done
     local server=$!
-    curl --silent --fail 0.0.0.0:$port/index.html >/dev/null
-    curl --silent --fail 0.0.0.0:$port/archive.html >/dev/null
-    curl --silent --fail 0.0.0.0:$port/p.html >/dev/null
-    curl --silent --fail 0.0.0.0:$port/$year/$month/$day/a.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/index.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/archive.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/p.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/$year/$month/$day/a.html >/dev/null
     kill $server
     wait $server &>/dev/null || :
 

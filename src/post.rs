@@ -1,23 +1,30 @@
 use chrono::{DateTime, Local};
 use config::Config;
 use error::Result;
+use files;
 use markdown;
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{Read, BufRead, BufReader, Write};
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::str;
 use std::string::String;
-use std::io::Write;
 use toml;
 
-const POST_META_END: &str = "%%%\n";
+const POST_META_MARK: &str = "%%%\n";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub enum PostKind{
+    Article,
+    Page,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct PostMeta {
     pub title: String,
     pub link: String,
     pub ts: DateTime<Local>,
-    pub is_article: bool,
+    pub kind: PostKind,
 }
 
 impl Default for PostMeta {
@@ -26,15 +33,14 @@ impl Default for PostMeta {
             title: "Default Title".to_string(),
             link: "default-link".to_string(),
             ts: Local::now(),
-            is_article: true,
+            kind: PostKind::Article,
         }
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Post {
     pub meta: PostMeta,
-    pub path: PathBuf,
     pub content: String,
 }
 
@@ -42,9 +48,15 @@ impl Default for Post {
     fn default() -> Self {
         Post {
             meta: PostMeta::default(),
-            path: Default::default(),
             content: String::new(),
         }
+    }
+}
+
+impl Deref for Post {
+    type Target = PostMeta;
+    fn deref(&self) -> &PostMeta {
+        &self.meta
     }
 }
 
@@ -61,7 +73,7 @@ impl Post {
         // parse metadata
         let mut meta = "".to_string();
         let mut line = "".to_string();
-        while line != POST_META_END {
+        while line != POST_META_MARK {
             meta += &line;
             line.clear();
             reader.read_line(&mut line)
@@ -78,25 +90,24 @@ impl Post {
 
         Ok(Post {
             meta,
-            path: path.clone(),
             content: markdown::markdown_to_html(str::from_utf8(&content)?)?,
         })
     }
 }
 
-pub fn create_post(link: String, config: Config, is_article: bool) -> Result<()> {
+pub fn create_post(link: String, config: Config, kind: PostKind) -> Result<()> {
     // XXX should support other markup languages
     let filename = format!("{}.md", link);
-    let opener = ::get_opener(config.force.unwrap_or(false));
+    let opener = files::get_opener(config.force.unwrap_or(false));
     let mut file = opener.open(&filename)
                          .map_err(|e| format!("fail to create {}: {}", filename, e))?;
 
     let mut post = Post::new();
     post.meta.link = link;
-    post.meta.is_article = is_article;
+    post.meta.kind = kind;
 
     file.write(toml::to_string(&post.meta)?.as_bytes())?;
-    file.write(POST_META_END.as_bytes())?;
+    file.write(POST_META_MARK.as_bytes())?;
     file.write(&post.content.as_bytes())?;
 
     Ok(())
@@ -114,7 +125,7 @@ mod tests {
         assert!(&meta.title == "Default Title");
         assert!(&meta.link == "default-link");
         assert!(just_now < meta.ts && meta.ts < Local::now());
-        assert!(meta.is_article);
+        assert!(meta.kind == PostKind::Article);
     }
 
     #[test]
@@ -125,7 +136,7 @@ mod tests {
         let filename = "test-link";
         let just_now = Local::now();
 
-        create_post(filename.to_string(), config, true).unwrap();
+        create_post(filename.to_string(), config, PostKind::Article).unwrap();
         let mut path = PathBuf::from(filename);
         path.set_extension("md");
 
@@ -133,11 +144,10 @@ mod tests {
         file.write(b"content").unwrap();
 
         let post = Post::from_file(&path).unwrap();
-        assert!(&post.meta.title == "Default Title");
-        assert!(&post.meta.link == "test-link");
-        assert!(just_now < post.meta.ts && post.meta.ts < Local::now());
-        assert!(post.meta.is_article);
-        assert!(post.path == path);
+        assert!(&post.title == "Default Title");
+        assert!(&post.link == "test-link");
+        assert!(just_now < post.ts && post.ts < Local::now());
+        assert!(post.kind == PostKind::Article);
         assert!(post.content == markdown::markdown_to_html("content").unwrap());
 
         fs::remove_file(path).unwrap();
