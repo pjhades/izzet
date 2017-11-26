@@ -6,7 +6,7 @@ use markdown;
 use std::fs::File;
 use std::io::{Read, BufRead, BufReader, Write};
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::Path;
 use std::str;
 use std::string::String;
 use toml;
@@ -65,9 +65,9 @@ impl Post {
         Post::default()
     }
 
-    pub fn from_file(path: &PathBuf) -> Result<Self> {
-        let reader = File::open(path)
-            .map_err(|e| format!("open {:?} failed: {}", path, e))?;
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let reader = File::open(&path)
+            .map_err(|e| format!("open {:?} failed: {}", path.as_ref(), e))?;
         let mut reader = BufReader::new(reader);
 
         // parse metadata
@@ -77,16 +77,16 @@ impl Post {
             meta += &line;
             line.clear();
             reader.read_line(&mut line)
-                  .map_err(|e| format!("read metadata from {:?} failed: {}", path, e))?;
+                  .map_err(|e| format!("read metadata from {:?} failed: {}", path.as_ref(), e))?;
         }
 
         let meta: PostMeta = toml::from_str(&meta)
-            .map_err(|e| format!("parse metadata of {:?} failed: {}", path, e))?;
+            .map_err(|e| format!("parse metadata of {:?} failed: {}", path.as_ref(), e))?;
 
         // parse content
         let mut content = vec![];
         reader.read_to_end(&mut content)
-              .map_err(|e| format!("read content from {:?} failed: {}", path, e))?;
+              .map_err(|e| format!("read content from {:?} failed: {}", path.as_ref(), e))?;
 
         Ok(Post {
             meta,
@@ -117,6 +117,7 @@ pub fn create_post(link: String, config: Config, kind: PostKind) -> Result<()> {
 mod tests {
     use super::*;
     use ::std::fs;
+    use ::std::path::PathBuf;
 
     #[test]
     fn test_post() {

@@ -27,10 +27,9 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn from_file<P>(path: P) -> Result<Self>
-            where P: AsRef<Path> + Debug {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut reader = File::open(&path)
-            .map_err(|e| format!("open {:?} failed: {}", path, e))?;
+            .map_err(|e| format!("open {:?} failed: {}", path.as_ref(), e))?;
         let mut conf = vec![];
         reader.read_to_end(&mut conf)
               .map_err(|e| format!("reading config file failed: {}", e))?;

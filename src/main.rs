@@ -10,24 +10,22 @@ use izzet::site::Site;
 use post::PostKind;
 use std::env;
 use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn create_site(m: &Matches) -> Result<()> {
     let force = m.opt_present("force");
-    let dir = m.free.get(1).map(|s| PathBuf::from(s))
-        .unwrap_or(env::current_dir()?);
+    let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
 
-    if !Path::new(&dir).exists() {
-        create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", &dir, e))?;
+    if !dir.exists() {
+        create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", dir, e))?;
     }
 
     for d in izzet::SITE_DIRS {
         let p = dir.join(d);
-        create_dir_all(&p)
-            .map_err(|e| format!("error creating {:?}: {}", p, e))?;
+        create_dir_all(&p).map_err(|e| format!("error creating {:?}: {}", p, e))?;
     }
 
     let config: Config = Config::default();
@@ -50,18 +48,12 @@ fn usage(opts: &Options) {
 }
 
 fn run(m: Matches, action: &str) -> Result<()> {
-    // Note that now we have no configuration file yet
     if action == "new" {
         create_site(&m)?;
         return Ok(());
     }
 
-    // Load config file as a basis which may be overwritten
-    // later by the command-line options.
-    let mut config = Config::from_file(m.opt_str("config")
-                                        .map(|p| PathBuf::from(p))
-                                        .unwrap_or(env::current_dir()?)
-                                        .join(izzet::CONFIG_FILE))?;
+    let mut config = Config::from_file(m.opt_str("config").unwrap_or(izzet::CONFIG_FILE.to_string()))?;
 
     if m.opt_present("force") {
         config.force = Some(true)
@@ -72,14 +64,12 @@ fn run(m: Matches, action: &str) -> Result<()> {
 
     match action {
         "article" => {
-            let link = m.free.get(1)
-                .ok_or(Error::new("need the link of the article".to_string()))?;
+            let link = m.free.get(1).ok_or(Error::new("need the link of the article".to_string()))?;
             post::create_post(link.to_string(), config, PostKind::Article)?;
         },
 
         "page" => {
-            let link = m.free.get(1)
-                .ok_or(Error::new("need the link of the page".to_string()))?;
+            let link = m.free.get(1).ok_or(Error::new("need the link of the page".to_string()))?;
             post::create_post(link.clone(), config, PostKind::Page)?;
         },
 
@@ -90,9 +80,7 @@ fn run(m: Matches, action: &str) -> Result<()> {
         },
 
         "server" => {
-            let dir = m.free.get(1)
-                .map(PathBuf::from)
-                .unwrap_or(env::current_dir()?);
+            let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
             config.port = m.opt_str("listen")
                 .and_then(|s| s.parse::<u16>().ok());
             server::forever(dir, config)?;

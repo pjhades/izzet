@@ -1,7 +1,7 @@
 use config::Config;
 use error::{Error, Result};
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::Path;
 use std::str::FromStr;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
@@ -11,7 +11,7 @@ fn resp_with_status(req: Request, code: u16) -> Result<()> {
        .map_err(|e| Error::new(format!("fail to respond: {}", e)))
 }
 
-pub fn forever(dir: PathBuf, config: Config) -> Result<()> {
+pub fn forever<P: AsRef<Path>>(dir: P, config: Config) -> Result<()> {
     let server = Server::http(("0.0.0.0", config.port.unwrap_or(::DEFAULT_PORT)))?;
 
     loop {
@@ -22,7 +22,7 @@ pub fn forever(dir: PathBuf, config: Config) -> Result<()> {
         }
 
         // skip the leading slash
-        let mut path = dir.join(&req.url()[1..]);
+        let mut path = dir.as_ref().join(&req.url()[1..]);
         if path.is_dir() {
             path = path.join(::INDEX_FILE);
         }
