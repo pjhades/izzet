@@ -1,4 +1,4 @@
-use config::Config;
+use conf::Conf;
 use error::{Error, Result};
 use std::fs::File;
 use std::path::Path;
@@ -11,8 +11,8 @@ fn resp_with_status(req: Request, code: u16) -> Result<()> {
        .map_err(|e| Error::new(format!("fail to respond: {}", e)))
 }
 
-pub fn forever<P: AsRef<Path>>(dir: P, config: Config) -> Result<()> {
-    let server = Server::http(("0.0.0.0", config.port.unwrap_or(::DEFAULT_PORT)))?;
+pub fn forever<P: AsRef<Path>>(dir: P, conf: Conf) -> Result<()> {
+    let server = Server::http(("0.0.0.0", conf.port.unwrap_or(::DEFAULT_PORT)))?;
 
     loop {
         let req = server.recv()?;

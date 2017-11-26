@@ -6,7 +6,7 @@ extern crate tera;
 extern crate tiny_http;
 extern crate toml;
 
-pub mod config;
+pub mod conf;
 pub mod error;
 pub mod files;
 pub mod markdown;
@@ -70,7 +70,7 @@ pub const INDEX_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <h1><a href=\"/\">{{ conf.title }}</a></h1>
   <div>
     <ul>
       <li><a href=\"/\">Home</a></li>
@@ -106,7 +106,7 @@ pub const ARCHIVE_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <h1><a href=\"/\">{{ conf.title }}</a></h1>
   <div>
     <ul>
     {% for article in articles %}

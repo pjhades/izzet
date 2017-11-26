@@ -1,10 +1,10 @@
-use config::Config;
+use conf::Conf;
 use error::{Error, Result};
 use files;
 use tera::{Tera, Context};
 use post::{Post, PostKind};
 use std::{env, fs};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct Site {
     ctx: Context,
@@ -14,8 +14,8 @@ pub struct Site {
 }
 
 impl Site {
-    pub fn collect(config: &Config) -> Result<Self> {
-        let in_dir = config.in_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
+    pub fn collect(conf: &Conf) -> Result<Self> {
+        let in_dir = conf.in_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
 
         let mut articles = vec![];
         let mut pages = vec![];
@@ -37,7 +37,7 @@ impl Site {
         let mut ctx = Context::new();
         ctx.add("articles", &articles);
         ctx.add("pages", &pages);
-        ctx.add("config", &config);
+        ctx.add("conf", &conf);
         if let Some(p) = articles.first() {
             ctx.add("latest_article", p);
         }
@@ -45,8 +45,8 @@ impl Site {
         Ok(Site { ctx, articles, pages, tera })
     }
 
-    pub fn generate(&self, config: &Config) -> Result<()> {
-        let out_dir = config.out_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
+    pub fn generate(&self, conf: &Conf) -> Result<()> {
+        let out_dir = conf.out_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
 
         for p in self.articles.iter().chain(self.pages.iter()) {
             let mut path = match p.kind {
@@ -63,7 +63,7 @@ impl Site {
             path.set_extension("html");
             println!("generating {:?}", path);
             files::fwrite(out_dir.join(path), rendered.as_bytes(),
-                          config.force.unwrap_or(false))?;
+                          conf.force.unwrap_or(false))?;
         }
 
         for f in &[::INDEX_FILE, ::ARCHIVE_FILE] {
@@ -71,7 +71,7 @@ impl Site {
             self.tera.render(f, &self.ctx)
                 .map_err(|e| Error::new(format!("fail to generate {}: {}", f, e)))
                 .and_then(|rendered| files::fwrite(out_dir.join(f), rendered.as_bytes(),
-                                                   config.force.unwrap_or(false)))?;
+                                                   conf.force.unwrap_or(false)))?;
         }
 
         Ok(())

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local};
-use config::Config;
+use conf::Conf;
 use error::Result;
 use files;
 use markdown;
@@ -95,10 +95,10 @@ impl Post {
     }
 }
 
-pub fn create_post(link: String, config: Config, kind: PostKind) -> Result<()> {
+pub fn create_post(link: String, conf: Conf, kind: PostKind) -> Result<()> {
     // XXX should support other markup languages
     let filename = format!("{}.md", link);
-    let opener = files::get_opener(config.force.unwrap_or(false));
+    let opener = files::get_opener(conf.force.unwrap_or(false));
     let mut file = opener.open(&filename)
                          .map_err(|e| format!("fail to create {}: {}", filename, e))?;
 
@@ -131,13 +131,13 @@ mod tests {
 
     #[test]
     fn test_create_post() {
-        let mut config = Config::default();
-        config.force = Some(true);
+        let mut conf = Conf::default();
+        conf.force = Some(true);
 
         let filename = "test-link";
         let just_now = Local::now();
 
-        create_post(filename.to_string(), config, PostKind::Article).unwrap();
+        create_post(filename.to_string(), conf, PostKind::Article).unwrap();
         let mut path = PathBuf::from(filename);
         path.set_extension("md");
 
