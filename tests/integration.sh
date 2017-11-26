@@ -14,7 +14,7 @@ clean_site() {
 
 assert_site_files() {
     test -f $SITE/.nojekyll
-    test -f $SITE/.izzetconfig
+    test -f $SITE/izzet.toml
     test -d $SITE/src
     test -d $SITE/theme
 }
@@ -64,15 +64,15 @@ test_generate_site_and_local_server() {
     echo -n "${FUNCNAME[0]} ... "
 
     $IZZET -n $SITE
-    $IZZET -c $SITE/.izzetconfig -a a
+    $IZZET -c $SITE/izzet.toml -a a
     test -f a.md
-    $IZZET -c $SITE/.izzetconfig -p p
+    $IZZET -c $SITE/izzet.toml -p p
     test -f p.md
     mv a.md p.md $SITE/src
 
-    $IZZET -c $SITE/.izzetconfig -g -i $SITE -o $SITE &>/dev/null
-    ! $IZZET -c $SITE/.izzetconfig -g -i $SITE -o $SITE &>/dev/null
-    $IZZET -c $SITE/.izzetconfig -g -f -i $SITE -o $SITE &>/dev/null
+    $IZZET -c $SITE/izzet.toml -g -i $SITE -o $SITE &>/dev/null
+    ! $IZZET -c $SITE/izzet.toml -g -i $SITE -o $SITE &>/dev/null
+    $IZZET -c $SITE/izzet.toml -g -f -i $SITE -o $SITE &>/dev/null
 
     cd $SITE
     local ts=($(find . -mindepth 4 -type f -a -name '*.html' | \
@@ -82,7 +82,7 @@ test_generate_site_and_local_server() {
     local month=${ts[1]}
     local day=${ts[2]}
 
-    $IZZET -c $SITE/.izzetconfig -s $SITE -l 9999 >/dev/null &
+    $IZZET -c $SITE/izzet.toml -s $SITE -l 9999 >/dev/null &
     while ! pgrep izzet &>/dev/null; do
         sleep 0.5
     done

@@ -16,7 +16,7 @@ pub mod site;
 
 pub const DEFAULT_PORT: u16 = 10950;
 
-pub const CONFIG_FILE:   &str = ".izzetconfig";
+pub const CONFIG_FILE:   &str = "izzet.toml";
 // XXX this should be made configurable
 pub const NOJEKYLL_FILE: &str = ".nojekyll";
 pub const INDEX_FILE:    &str = "index.html";
