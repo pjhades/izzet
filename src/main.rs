@@ -9,7 +9,7 @@ use izzet::conf::Conf;
 use izzet::site::Site;
 use post::PostKind;
 use std::env;
-use std::fs::create_dir_all;
+use std::fs;
 use std::path::PathBuf;
 use std::process;
 
@@ -20,12 +20,12 @@ fn create_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
 
     if !dir.exists() {
-        create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", dir, e))?;
+        fs::create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", dir, e))?;
     }
 
     for d in izzet::SITE_DIRS {
         let p = dir.join(d);
-        create_dir_all(&p).map_err(|e| format!("error creating {:?}: {}", p, e))?;
+        fs::create_dir_all(&p).map_err(|e| format!("error creating {:?}: {}", p, e))?;
     }
 
     let conf: Conf = Conf::default();
