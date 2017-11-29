@@ -6,8 +6,8 @@ debug:
 test: unit integration
 unit:
 	cargo test
-integration:
-	BUILD=$(BUILD) bash tests/integration.sh
+integration: debug
+	BUILD=debug bash tests/integration.sh
 
 clean:
 	cargo clean

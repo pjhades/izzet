@@ -6,30 +6,27 @@ extern crate tera;
 extern crate tiny_http;
 extern crate toml;
 
-use std::fs::OpenOptions;
-
-pub mod config;
+pub mod conf;
 pub mod error;
-pub mod gen;
+pub mod files;
 pub mod markdown;
 pub mod post;
 pub mod server;
+pub mod site;
 
 pub const DEFAULT_PORT: u16 = 10950;
 
-pub const CONFIG_FILE:   &str = ".izzetconfig";
+pub const CONFIG_FILE:   &str = "izzet.toml";
 // XXX this should be made configurable
 pub const NOJEKYLL_FILE: &str = ".nojekyll";
 pub const INDEX_FILE:    &str = "index.html";
 pub const POST_FILE:     &str = "post.html";
 pub const ARCHIVE_FILE:  &str = "archive.html";
 
-pub const FILES_DIR:     &str = "files";
 pub const SRC_DIR:       &str = "src";
 pub const THEME_DIR:     &str = "theme";
 
 pub const SITE_DIRS:  &[&str] = &[
-    FILES_DIR,
     SRC_DIR,
     THEME_DIR,
 ];
@@ -73,7 +70,7 @@ pub const INDEX_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <h1><a href=\"/\">{{ conf.title }}</a></h1>
   <div>
     <ul>
       <li><a href=\"/\">Home</a></li>
@@ -109,7 +106,7 @@ pub const ARCHIVE_HTML: &[u8] = b"\
   <meta charset=\"utf-8\">
 </head>
 <body>
-  <h1><a href=\"/\">{{ config.title }}</a></h1>
+  <h1><a href=\"/\">{{ conf.title }}</a></h1>
   <div>
     <ul>
     {% for article in articles %}
@@ -125,15 +122,3 @@ pub const ARCHIVE_HTML: &[u8] = b"\
 </body>
 </html>
 ";
-
-pub fn get_opener(force: bool) -> OpenOptions {
-    let mut opener = OpenOptions::new();
-    opener.write(true);
-    if force {
-        opener.create(true).truncate(true);
-    }
-    else {
-        opener.create_new(true);
-    }
-    opener
-}

@@ -4,58 +4,40 @@ extern crate toml;
 
 use getopts::{Matches, Options};
 use izzet::error::{Error, Result};
-use izzet::{gen, post, server};
-use izzet::config::Config;
+use izzet::{files, post, server};
+use izzet::conf::Conf;
+use izzet::site::Site;
+use post::PostKind;
 use std::env;
-use std::fs::DirBuilder;
+use std::fs;
 use std::path::PathBuf;
 use std::process;
-use std::io::Write;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn create_site(m: &Matches) -> Result<()> {
-    let dir = m.free.get(1)
-        .map(|s| PathBuf::from(s))
-        .unwrap_or(env::current_dir()?);
+    let force = m.opt_present("force");
+    let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
 
-    if !PathBuf::from(&dir).exists() {
-        DirBuilder::new()
-            .recursive(false)
-            .create(&dir)
-            .map_err(|e| format!("fail to create {:?}: {}", &dir, e))?;
+    if !dir.exists() {
+        fs::create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", dir, e))?;
     }
 
-    let opener = izzet::get_opener(m.opt_present("force"));
-
-    // create a default configuration file
-    let config: Config = Config::default();
-    let config = toml::to_string(&config)?;
-    opener.open(dir.join(izzet::CONFIG_FILE))
-          .and_then(|mut f| f.write(config.as_bytes()))
-          .map_err(|e| format!("fail to create {}: {}", izzet::CONFIG_FILE, e))?;
-
-    // create other files
-    // XXX may need to do more things here later
-    for filename in izzet::SITE_FILES {
-        opener.open(dir.join(filename))
-              .map_err(|e| format!("fail to create {}: {}", filename, e))?;
+    for d in izzet::SITE_DIRS {
+        let p = dir.join(d);
+        fs::create_dir_all(&p).map_err(|e| format!("error creating {:?}: {}", p, e))?;
     }
 
-    // create directories
-    for dirname in izzet::SITE_DIRS {
-        DirBuilder::new()
-            .recursive(m.opt_present("force"))
-            .create(dir.join(dirname))
-            .map_err(|e| format!("fail to create {}: {}", dirname, e))?;
+    let conf: Conf = Conf::default();
+    let conf = toml::to_string(&conf)?;
+    files::fwrite(&dir.join(izzet::CONFIG_FILE), conf.as_bytes(), force)?;
+
+    for f in izzet::SITE_FILES {
+        files::fwrite(&dir.join(f), &[], force)?;
     }
 
-    // create default templates
-    for &(filename, html) in izzet::SITE_TEMPLATES {
-        let mut file = opener.open(dir.join(izzet::THEME_DIR)
-                                      .join(filename))
-                             .map_err(|e| format!("fail to create {}: {}", filename, e))?;
-        file.write(html)?;
+    for &(f, html) in izzet::SITE_TEMPLATES {
+        files::fwrite(&dir.join(izzet::THEME_DIR).join(f), html, force)?;
     }
 
     Ok(())
@@ -66,52 +48,42 @@ fn usage(opts: &Options) {
 }
 
 fn run(m: Matches, action: &str) -> Result<()> {
-    // Note that now we have no configuration file yet
     if action == "new" {
         create_site(&m)?;
         return Ok(());
     }
 
-    // Load config file as a basis which may be overwritten
-    // later by the command-line options.
-    let mut config = Config::from_file(m.opt_str("config")
-                                        .map(|p| PathBuf::from(p))
-                                        .unwrap_or(env::current_dir()?)
-                                        .join(izzet::CONFIG_FILE))?;
+    let mut conf = Conf::from_file(m.opt_str("conf").unwrap_or(izzet::CONFIG_FILE.to_string()))?;
 
     if m.opt_present("force") {
-        config.force = Some(true)
+        conf.force = Some(true)
     }
-    if let None = config.title {
-        config.title = Some("Default title".to_string());
+    if let None = conf.title {
+        conf.title = Some("Default title".to_string());
     }
 
     match action {
         "article" => {
-            let link = m.free.get(1)
-                .ok_or(Error::new("need the link of the article".to_string()))?;
-            post::create_post(link.to_string(), config, true)?;
+            let path = m.free.get(1).ok_or(Error::new("need specify path to the article".to_string()))?;
+            post::create_post(path.to_string(), conf, PostKind::Article)?;
         },
 
         "page" => {
-            let link = m.free.get(1)
-                .ok_or(Error::new("need the link of the page".to_string()))?;
-            post::create_post(link.clone(), config, false)?;
+            let path = m.free.get(1).ok_or(Error::new("need specify path to the page".to_string()))?;
+            post::create_post(path.to_string(), conf, PostKind::Page)?;
         },
 
         "gen" => {
-            config.in_dir = m.opt_str("input");
-            config.out_dir = m.opt_str("output");
-            gen::generate(config)?;
+            conf.in_dir = m.opt_str("input");
+            conf.out_dir = m.opt_str("output");
+            Site::collect(&conf).and_then(|s| s.generate(&conf))?;
         },
 
         "server" => {
-            let dir = m.free.get(1)
-                .map(PathBuf::from)
-                .unwrap_or(env::current_dir()?);
-            config.port = m.opt_str("listen")
+            let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
+            conf.port = m.opt_str("listen")
                 .and_then(|s| s.parse::<u16>().ok());
-            server::forever(dir, config)?;
+            server::forever(dir, conf)?;
         },
 
         _ => {
@@ -137,13 +109,13 @@ fn main() {
     opts.optflag("f", "force", "Overwrite existing files when creating articles, \
                                 generating site output files, etc.");
 
-    opts.optopt("c", "config", "Search for configuration file at the specified \
-                                directory. By default the configuration file will be \
-                                looked for under the current directory.", "CONFIG");
+    opts.optopt("c", "conf", "Search for configuration file at the specified \
+                              directory. By default the configuration file will be \
+                              looked for under the current directory.", "CONFIG");
     opts.optopt("i", "input", "Input site directory. Read input files from current \
-                              directory by default.", "INPUT");
+                               directory by default.", "INPUT");
     opts.optopt("o", "output", "Output site directory. Write to current directory \
-                               by default.", "OUTPUT");
+                                by default.", "OUTPUT");
     opts.optopt("l", "listen", "Port on which the local server will listen.", "PORT");
 
     opts.optflag("h", "help", "Show this help message.");

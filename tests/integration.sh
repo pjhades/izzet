@@ -9,17 +9,14 @@ trap clean_site EXIT
 
 clean_site() {
     rm -rf $SITE
-    if pgrep izzet; then
-        pkill izzet
-    fi
+    pkill izzet || :
 }
 
 assert_site_files() {
     test -f $SITE/.nojekyll
-    test -f $SITE/.izzetconfig
+    test -f $SITE/izzet.toml
     test -d $SITE/src
     test -d $SITE/theme
-    test -d $SITE/files
 }
 
 test_create_new_site() {
@@ -50,13 +47,13 @@ test_create_post() {
     $IZZET -n $SITE
     cd $SITE
 
-    $IZZET -a a
-    ! $IZZET -a a &>/dev/null
-    $IZZET -a -f a
+    $IZZET -a a.md
+    ! $IZZET -a a.md &>/dev/null
+    $IZZET -a -f a.md
 
-    $IZZET -p p
-    ! $IZZET -p p &>/dev/null
-    $IZZET -p -f p
+    $IZZET -p p.md
+    ! $IZZET -p p.md &>/dev/null
+    $IZZET -p -f p.md
 
     clean_site
     cd - >/dev/null
@@ -67,15 +64,14 @@ test_generate_site_and_local_server() {
     echo -n "${FUNCNAME[0]} ... "
 
     $IZZET -n $SITE
-    $IZZET -c $SITE -a a
-    test -f a.md
-    $IZZET -c $SITE -p p
-    test -f p.md
-    mv a.md p.md $SITE/src
+    $IZZET -c $SITE/izzet.toml -a $SITE/src/a.md
+    test -f $SITE/src/a.md
+    $IZZET -c $SITE/izzet.toml -p $SITE/src/p.md
+    test -f $SITE/src/p.md
 
-    $IZZET -c $SITE -g -i $SITE -o $SITE &>/dev/null
-    ! $IZZET -c $SITE -g -i $SITE -o $SITE &>/dev/null
-    $IZZET -c $SITE -g -f -i $SITE -o $SITE &>/dev/null
+    $IZZET -c $SITE/izzet.toml -g -i $SITE -o $SITE &>/dev/null
+    ! $IZZET -c $SITE/izzet.toml -g -i $SITE -o $SITE &>/dev/null
+    $IZZET -c $SITE/izzet.toml -g -f -i $SITE -o $SITE &>/dev/null
 
     cd $SITE
     local ts=($(find . -mindepth 4 -type f -a -name '*.html' | \
@@ -85,13 +81,15 @@ test_generate_site_and_local_server() {
     local month=${ts[1]}
     local day=${ts[2]}
 
-    local port=$((RANDOM%10000+40000))
-    $IZZET -c $SITE -s $SITE -l $port >/dev/null &
+    $IZZET -c $SITE/izzet.toml -s $SITE -l 9999 >/dev/null &
+    while ! pgrep izzet &>/dev/null; do
+        sleep 0.5
+    done
     local server=$!
-    curl --silent --fail 0.0.0.0:$port/index.html >/dev/null
-    curl --silent --fail 0.0.0.0:$port/archive.html >/dev/null
-    curl --silent --fail 0.0.0.0:$port/p.html >/dev/null
-    curl --silent --fail 0.0.0.0:$port/$year/$month/$day/a.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/index.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/archive.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/p.html >/dev/null
+    curl --silent --fail 0.0.0.0:9999/$year/$month/$day/a.html >/dev/null
     kill $server
     wait $server &>/dev/null || :
 
