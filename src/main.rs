@@ -64,13 +64,13 @@ fn run(m: Matches, action: &str) -> Result<()> {
 
     match action {
         "article" => {
-            let link = m.free.get(1).ok_or(Error::new("need the link of the article".to_string()))?;
-            post::create_post(link.to_string(), conf, PostKind::Article)?;
+            let path = m.free.get(1).ok_or(Error::new("need specify path to the article".to_string()))?;
+            post::create_post(path.to_string(), conf, PostKind::Article)?;
         },
 
         "page" => {
-            let link = m.free.get(1).ok_or(Error::new("need the link of the page".to_string()))?;
-            post::create_post(link.clone(), conf, PostKind::Page)?;
+            let path = m.free.get(1).ok_or(Error::new("need specify path to the page".to_string()))?;
+            post::create_post(path.to_string(), conf, PostKind::Page)?;
         },
 
         "gen" => {

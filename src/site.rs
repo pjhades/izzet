@@ -25,7 +25,10 @@ impl Site {
         tera.autoescape_on(vec![]);
 
         for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
-            let post = Post::from_file(&entry?.path())?;
+            let post = match Post::from_file(&entry?.path())? {
+                None => continue,
+                Some(p) => p,
+            };
             match post.kind {
                 PostKind::Article => articles.push(post),
                 PostKind::Page => pages.push(post),

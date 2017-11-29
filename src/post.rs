@@ -1,10 +1,10 @@
 use chrono::{DateTime, Local};
 use conf::Conf;
-use error::Result;
+use error::{Error, Result};
 use files;
 use markdown;
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader, Write};
+use std::io::{Read, BufRead, BufReader};
 use std::ops::Deref;
 use std::path::Path;
 use std::str;
@@ -41,14 +41,14 @@ impl Default for PostMeta {
 #[derive(Serialize, Debug)]
 pub struct Post {
     pub meta: PostMeta,
-    pub content: String,
+    pub content: Vec<u8>,
 }
 
 impl Default for Post {
     fn default() -> Self {
         Post {
             meta: PostMeta::default(),
-            content: String::new(),
+            content: vec![],
         }
     }
 }
@@ -65,50 +65,53 @@ impl Post {
         Post::default()
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let reader = File::open(&path)
-            .map_err(|e| format!("open {:?} failed: {}", path.as_ref(), e))?;
-        let mut reader = BufReader::new(reader);
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<Self>> {
+        let mut reader = File::open(&path).map(|f| BufReader::new(f))
+            .map_err(|e| format!("error opening {:?}: {}", path.as_ref(), e))?;
 
-        // parse metadata
         let mut meta = "".to_string();
         let mut line = "".to_string();
-        while line != POST_META_MARK {
-            meta += &line;
-            line.clear();
-            reader.read_line(&mut line)
-                  .map_err(|e| format!("read metadata from {:?} failed: {}", path.as_ref(), e))?;
+        loop {
+            match reader.read_line(&mut line) {
+                Ok(n) if n > 0 && &line != POST_META_MARK => {
+                    meta += &line;
+                    line.clear();
+                },
+                Ok(n) if n > 0 => break,
+                _ => return Ok(None),
+            }
         }
 
         let meta: PostMeta = toml::from_str(&meta)
-            .map_err(|e| format!("parse metadata of {:?} failed: {}", path.as_ref(), e))?;
+            .map_err(|e| format!("error parsing metadata of {:?}: {}", path.as_ref(), e))?;
 
-        // parse content
         let mut content = vec![];
         reader.read_to_end(&mut content)
-              .map_err(|e| format!("read content from {:?} failed: {}", path.as_ref(), e))?;
+              .map_err(|e| format!("error reading content from {:?}: {}", path.as_ref(), e))?;
 
-        Ok(Post {
-            meta,
-            content: markdown::markdown_to_html(str::from_utf8(&content)?)?,
-        })
+        let content = match path.as_ref().extension().and_then(|s| s.to_str()) {
+            Some("md") | Some("markdown") =>
+                markdown::markdown_to_html(str::from_utf8(&content)?)?.into_bytes(),
+            _ =>
+                content,
+        };
+
+        Ok(Some(Post { meta, content }))
     }
 }
 
-pub fn create_post(link: String, conf: Conf, kind: PostKind) -> Result<()> {
-    // XXX should support other markup languages
-    let filename = format!("{}.md", link);
-    let opener = files::get_opener(conf.force.unwrap_or(false));
-    let mut file = opener.open(&filename)
-                         .map_err(|e| format!("fail to create {}: {}", filename, e))?;
+pub fn create_post<P: AsRef<Path>>(path: P, conf: Conf, kind: PostKind) -> Result<()> {
+    let link = match path.as_ref().file_stem().and_then(|s| s.to_str()) {
+        None => return Err(Error::new("need specify link of post".to_string())),
+        Some(stem) => stem.to_string(),
+    };
 
     let mut post = Post::new();
-    post.meta.link = link;
     post.meta.kind = kind;
+    post.meta.link = link.to_string();
 
-    file.write(toml::to_string(&post.meta)?.as_bytes())?;
-    file.write(POST_META_MARK.as_bytes())?;
-    file.write(&post.content.as_bytes())?;
+    let content = toml::to_string(&post.meta)? + POST_META_MARK;
+    files::fwrite(&path, content.as_bytes(), conf.force.unwrap_or(false))?;
 
     Ok(())
 }
@@ -116,11 +119,11 @@ pub fn create_post(link: String, conf: Conf, kind: PostKind) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::std::fs;
-    use ::std::path::PathBuf;
+    use ::std::{env, fs};
+    use ::std::io::Write;
 
     #[test]
-    fn test_post() {
+    fn test_post_default_value() {
         let just_now = Local::now();
         let meta = PostMeta::default();
         assert!(&meta.title == "Default Title");
@@ -131,26 +134,21 @@ mod tests {
 
     #[test]
     fn test_create_post() {
-        let mut conf = Conf::default();
-        conf.force = Some(true);
+        let mut c = Conf::default();
+        c.force = Some(true);
 
-        let filename = "test-link";
+        let p = env::temp_dir().join("article.md");
         let just_now = Local::now();
+        create_post(&p, c, PostKind::Article).unwrap();
+        fs::OpenOptions::new().append(true).open(&p).unwrap().write(b"XXX").unwrap();
 
-        create_post(filename.to_string(), conf, PostKind::Article).unwrap();
-        let mut path = PathBuf::from(filename);
-        path.set_extension("md");
-
-        let mut file = fs::OpenOptions::new().append(true).open(&path).unwrap();
-        file.write(b"content").unwrap();
-
-        let post = Post::from_file(&path).unwrap();
-        assert!(&post.title == "Default Title");
-        assert!(&post.link == "test-link");
+        let post = Post::from_file(&p).unwrap().unwrap();
         assert!(just_now < post.ts && post.ts < Local::now());
+        assert!(&post.title == "Default Title");
+        assert!(&post.link == "article");
         assert!(post.kind == PostKind::Article);
-        assert!(post.content == markdown::markdown_to_html("content").unwrap());
+        assert!(post.content == markdown::markdown_to_html("XXX").unwrap().into_bytes());
 
-        fs::remove_file(path).unwrap();
+        fs::remove_file(p).unwrap();
     }
 }

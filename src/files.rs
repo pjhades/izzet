@@ -1,6 +1,6 @@
-use error::Result;
-use std::fs::{create_dir_all, OpenOptions};
-use std::io::Write;
+use error::{Error, Result};
+use std::fs::{create_dir_all, File, OpenOptions};
+use std::io::{Read, Write};
 use std::path::Path;
 
 pub fn get_opener(force: bool) -> OpenOptions {
@@ -13,6 +13,14 @@ pub fn get_opener(force: bool) -> OpenOptions {
         opener.create_new(true);
     }
     opener
+}
+
+pub fn fread<P: AsRef<Path>>(path: P) -> Result<String> {
+    let mut content = vec![];
+    File::open(&path).and_then(|mut f| f.read_to_end(&mut content))
+        .map_err(|e| format!("error opening file {:?}: {}", path.as_ref(), e))?;
+    String::from_utf8(content)
+        .map_err(|e| Error::new(format!("error reading file {:?}: {}", path.as_ref(), e)))
 }
 
 pub fn fwrite<P: AsRef<Path>>(path: P, data: &[u8], force: bool) -> Result<()> {

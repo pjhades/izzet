@@ -47,13 +47,13 @@ test_create_post() {
     $IZZET -n $SITE
     cd $SITE
 
-    $IZZET -a a
-    ! $IZZET -a a &>/dev/null
-    $IZZET -a -f a
+    $IZZET -a a.md
+    ! $IZZET -a a.md &>/dev/null
+    $IZZET -a -f a.md
 
-    $IZZET -p p
-    ! $IZZET -p p &>/dev/null
-    $IZZET -p -f p
+    $IZZET -p p.md
+    ! $IZZET -p p.md &>/dev/null
+    $IZZET -p -f p.md
 
     clean_site
     cd - >/dev/null
@@ -64,11 +64,10 @@ test_generate_site_and_local_server() {
     echo -n "${FUNCNAME[0]} ... "
 
     $IZZET -n $SITE
-    $IZZET -c $SITE/izzet.toml -a a
-    test -f a.md
-    $IZZET -c $SITE/izzet.toml -p p
-    test -f p.md
-    mv a.md p.md $SITE/src
+    $IZZET -c $SITE/izzet.toml -a $SITE/src/a.md
+    test -f $SITE/src/a.md
+    $IZZET -c $SITE/izzet.toml -p $SITE/src/p.md
+    test -f $SITE/src/p.md
 
     $IZZET -c $SITE/izzet.toml -g -i $SITE -o $SITE &>/dev/null
     ! $IZZET -c $SITE/izzet.toml -g -i $SITE -o $SITE &>/dev/null
