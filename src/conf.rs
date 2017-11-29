@@ -1,6 +1,5 @@
-use error::Result;
-use std::fs::File;
-use std::io::Read;
+use error::{Error, Result};
+use files;
 use std::path::Path;
 use toml;
 
@@ -27,15 +26,8 @@ impl Default for Conf {
 
 impl Conf {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let mut reader = File::open(&path)
-            .map_err(|e| format!("error opening configuration {:?}: {}", path.as_ref(), e))?;
-        let mut conf = vec![];
-        reader.read_to_end(&mut conf)
-              .map_err(|e| format!("error reading configuration {:?}: {}", path.as_ref(), e))?;
-        let conf = toml::from_slice(conf.as_slice())
-            .map_err(|e| format!("error parsing configuration: {}", e))?;
-
-        Ok(conf)
+        toml::from_slice(files::fread(path)?.as_slice())
+            .map_err(|e| Error::new(format!("error parsing configuration: {}", e)))
     }
 }
 
@@ -43,6 +35,7 @@ impl Conf {
 mod tests {
     use super::*;
     use ::std::{env, fs};
+    use ::std::fs::File;
     use ::std::io::Write;
 
     #[test]
