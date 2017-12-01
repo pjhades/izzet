@@ -12,7 +12,8 @@ fn resp_with_status(req: Request, code: u16) -> Result<()> {
 }
 
 pub fn forever<P: AsRef<Path>>(dir: P, conf: Conf) -> Result<()> {
-    let server = Server::http(("0.0.0.0", conf.port.unwrap_or(::DEFAULT_PORT)))?;
+    let server = Server::http(("0.0.0.0", conf.port.unwrap_or(::DEFAULT_PORT)))
+        .map_err(|e| Error::new(e.description().to_string()))?;
 
     loop {
         let req = server.recv()?;
@@ -31,7 +32,8 @@ pub fn forever<P: AsRef<Path>>(dir: P, conf: Conf) -> Result<()> {
             Ok(f) => {
                 println!("200 - {} {}", req.method().as_str(), req.url());
                 let resp = Response::from_file(f)
-                    .with_header(Header::from_str("Cache-Control: no-cache,no-store,must-revalidate")?);
+                    .with_header(Header::from_str("Cache-Control: no-cache,no-store,must-revalidate")
+                                 .map_err(|_| Error::new("error setting HTTP header".to_string()))?);
                 req.respond(resp)?;
             },
         }

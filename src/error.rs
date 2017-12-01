@@ -1,6 +1,4 @@
-use std::{error, fmt, io, result, string};
-use tera;
-use toml;
+use std::{error, fmt, result};
 
 #[derive(Debug)]
 pub struct Error {
@@ -15,7 +13,7 @@ impl Error {
 
 pub type Result<T> = result::Result<T, Error>;
 
-trait ResultContext<T, E> {
+pub trait ResultContext<T, E> {
     fn context(self, s: String) -> Result<T>;
 }
 
@@ -30,5 +28,11 @@ impl<T, E> ResultContext<T, E> for result::Result<T, E>
 impl<E: error::Error> From<E> for Error {
     fn from(e: E) -> Self {
         Error::new(e.description().to_string())
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.msg)
     }
 }
