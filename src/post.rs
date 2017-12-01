@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 use conf::Conf;
-use error::{Error, Result};
+use error::{Error, Result, ResultContext};
 use files;
 use markdown;
 use std::fs::File;
@@ -67,7 +67,7 @@ impl Post {
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<Self>> {
         let mut reader = File::open(&path).map(|f| BufReader::new(f))
-            .map_err(|e| format!("error opening {:?}: {}", path.as_ref(), e))?;
+            .context(format!("error opening {:?}", path.as_ref()))?;
 
         let mut meta = "".to_string();
         let mut line = "".to_string();
@@ -83,11 +83,11 @@ impl Post {
         }
 
         let meta: PostMeta = toml::from_str(&meta)
-            .map_err(|e| format!("error parsing metadata of {:?}: {}", path.as_ref(), e))?;
+            .context(format!("error parsing metadata of {:?}", path.as_ref()))?;
 
         let mut content = vec![];
         reader.read_to_end(&mut content)
-              .map_err(|e| format!("error reading content from {:?}: {}", path.as_ref(), e))?;
+              .context(format!("error reading content from {:?}", path.as_ref()))?;
 
         let content = match path.as_ref().extension().and_then(|s| s.to_str()) {
             Some("md") | Some("markdown") =>

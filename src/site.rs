@@ -1,5 +1,5 @@
 use conf::Conf;
-use error::{Error, Result};
+use error::{Error, Result, ResultContext};
 use files;
 use tera::{Tera, Context};
 use post::{Post, PostKind};
@@ -21,7 +21,7 @@ impl Site {
         let mut pages = vec![];
         let mut tera = Tera::new(in_dir.join(::THEME_DIR).join("*").to_str()
                                  .ok_or(Error::new("cannot get templates".to_string()))?)
-            .map_err(|e| format!("compile templates fails: {}", e))?;
+            .context("compile templates fails".to_string())?;
         tera.autoescape_on(vec![]);
 
         for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
@@ -62,7 +62,7 @@ impl Site {
             ctx.add("post", p);
 
             let rendered = self.tera.render(::POST_FILE, &ctx)
-                .map_err(|e| Error::new(format!("fail to generate {:?}: {}", path, e)))?;
+                .context(format!("fail to generate {:?}", path))?;
             path.set_extension("html");
             println!("generating {:?}", path);
             files::fwrite(out_dir.join(path), rendered.as_bytes(),
@@ -72,7 +72,7 @@ impl Site {
         for f in &[::INDEX_FILE, ::ARCHIVE_FILE] {
             println!("generating {}", f);
             self.tera.render(f, &self.ctx)
-                .map_err(|e| Error::new(format!("fail to generate {}: {}", f, e)))
+                .context(format!("fail to generate {}", f))
                 .and_then(|rendered| files::fwrite(out_dir.join(f), rendered.as_bytes(),
                                                    conf.force.unwrap_or(false)))?;
         }

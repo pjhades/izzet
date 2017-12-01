@@ -1,4 +1,4 @@
-use error::Result;
+use error::{Result, ResultContext};
 use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -18,18 +18,18 @@ pub fn get_opener(force: bool) -> OpenOptions {
 pub fn fread<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     let mut content = vec![];
     File::open(&path).and_then(|mut f| f.read_to_end(&mut content))
-        .map_err(|e| format!("error opening file {:?}: {}", path.as_ref(), e))?;
+        .context(format!("error opening file {:?}", path.as_ref()))?;
     Ok(content)
 }
 
 pub fn fwrite<P: AsRef<Path>>(path: P, data: &[u8], force: bool) -> Result<()> {
     if let Some(dir) = path.as_ref().parent() {
         if !dir.exists() {
-            create_dir_all(dir).map_err(|e| format!("error creating {:?}: {}", path.as_ref(), e))?;
+            create_dir_all(dir).context(format!("error creating {:?}", path.as_ref()))?;
         }
     }
     get_opener(force).open(&path)
         .and_then(|mut f| f.write(data))
-        .map_err(|e| format!("error writing {:?}: {}", path.as_ref(), e))?;
+        .context(format!("error writing {:?}", path.as_ref()))?;
     Ok(())
 }

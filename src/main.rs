@@ -3,7 +3,7 @@ extern crate izzet;
 extern crate toml;
 
 use getopts::{Matches, Options};
-use izzet::error::{Error, Result};
+use izzet::error::{Error, Result, ResultContext};
 use izzet::{files, post, server};
 use izzet::conf::Conf;
 use izzet::site::Site;
@@ -20,12 +20,12 @@ fn create_site(m: &Matches) -> Result<()> {
     let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
 
     if !dir.exists() {
-        fs::create_dir_all(&dir).map_err(|e| format!("error creating {:?}: {}", dir, e))?;
+        fs::create_dir_all(&dir).context(format!("error creating {:?}", dir))?;
     }
 
     for d in izzet::SITE_DIRS {
         let p = dir.join(d);
-        fs::create_dir_all(&p).map_err(|e| format!("error creating {:?}: {}", p, e))?;
+        fs::create_dir_all(&p).context(format!("error creating {:?}", p))?;
     }
 
     let conf: Conf = Conf::default();
