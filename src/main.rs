@@ -3,45 +3,16 @@ extern crate izzet;
 extern crate toml;
 
 use getopts::{Matches, Options};
-use izzet::error::{Error, Result, ResultContext};
-use izzet::{files, post, server};
+use izzet::error::{Error, Result};
+use izzet::{new, post, server};
 use izzet::conf::Conf;
 use izzet::site::Site;
 use post::PostKind;
 use std::env;
-use std::fs;
 use std::path::PathBuf;
 use std::process;
 
 const PROG_NAME: &str = env!("CARGO_PKG_NAME");
-
-fn create_site(m: &Matches) -> Result<()> {
-    let force = m.opt_present("force");
-    let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
-
-    if !dir.exists() {
-        fs::create_dir_all(&dir).context(format!("error creating {:?}", dir))?;
-    }
-
-    for d in izzet::SITE_DIRS {
-        let p = dir.join(d);
-        fs::create_dir_all(&p).context(format!("error creating {:?}", p))?;
-    }
-
-    let conf: Conf = Conf::default();
-    let conf = toml::to_string(&conf)?;
-    files::fwrite(&dir.join(izzet::CONFIG_FILE), conf.as_bytes(), force)?;
-
-    for f in izzet::SITE_FILES {
-        files::fwrite(&dir.join(f), &[], force)?;
-    }
-
-    for &(f, html) in izzet::SITE_TEMPLATES {
-        files::fwrite(&dir.join(izzet::THEME_DIR).join(f), html, force)?;
-    }
-
-    Ok(())
-}
 
 fn usage(opts: &Options) {
     println!("{}", opts.usage(&format!("Usage: {} <options> <args>", PROG_NAME)));
@@ -49,7 +20,8 @@ fn usage(opts: &Options) {
 
 fn run(m: Matches, action: &str) -> Result<()> {
     if action == "new" {
-        create_site(&m)?;
+        let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
+        new::create_site(dir, m.opt_present("force"))?;
         return Ok(());
     }
 
