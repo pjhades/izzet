@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Datelike, Local};
 use conf::Conf;
 use error::{Error, Result, ResultContext};
 use files;
@@ -9,6 +9,7 @@ use std::ops::Deref;
 use std::path::Path;
 use std::str;
 use std::string::String;
+use tera::{Tera, Context};
 use toml;
 
 const POST_META_MARK: &str = "%%%\n";
@@ -23,15 +24,22 @@ pub enum PostKind{
 pub struct PostMeta {
     pub title: String,
     pub link: String,
+    pub url: String,
     pub ts: DateTime<Local>,
     pub kind: PostKind,
 }
 
+const DEFAULT_TITLE: &str = "Default Title";
+const DEFAULT_LINK: &str = "default-link";
+const DEFAULT_ARTICLE_URL: &str = "/{{ year }}/{{ month }}/{{ day }}/{{ link }}.html";
+const DEFAULT_PAGE_URL: &str = "/{{ link }}.html";
+
 impl Default for PostMeta {
     fn default() -> Self {
         PostMeta {
-            title: "Default Title".to_string(),
-            link: "default-link".to_string(),
+            title: DEFAULT_TITLE.to_string(),
+            link: DEFAULT_LINK.to_string(),
+            url: DEFAULT_ARTICLE_URL.to_string(),
             ts: Local::now(),
             kind: PostKind::Article,
         }
@@ -84,6 +92,12 @@ impl Post {
 
         let meta: PostMeta = toml::from_str(&meta)
             .context(format!("error parsing metadata of {:?}", path.as_ref()))?;
+        // XXX maybe add more metadata sanity check here
+        // as later we'll lose the corresponding file path
+        // when generating it
+        if meta.url.len() == 0 {
+            return Err(Error::new(format!("output URL of post {:?} is 0", path.as_ref())));
+        }
 
         let mut content = vec![];
         reader.read_to_end(&mut content)
@@ -98,6 +112,16 @@ impl Post {
 
         Ok(Some(Post { meta, content }))
     }
+
+    pub fn url(&self) -> Result<String> {
+        let mut ctx = Context::new();
+        ctx.add("year", &self.ts.year());
+        ctx.add("month", &self.ts.month());
+        ctx.add("day", &self.ts.day());
+        ctx.add("link", &self.link);
+        Tera::one_off(&self.url, &ctx, false)
+            .map_err(|e| Error::from(e))
+    }
 }
 
 pub fn create_post<P: AsRef<Path>>(path: P, conf: Conf, kind: PostKind) -> Result<()> {
@@ -107,6 +131,10 @@ pub fn create_post<P: AsRef<Path>>(path: P, conf: Conf, kind: PostKind) -> Resul
     };
 
     let mut post = Post::new();
+    post.meta.url = match &kind {
+        &PostKind::Article => DEFAULT_ARTICLE_URL.to_string(),
+        &PostKind::Page => DEFAULT_PAGE_URL.to_string(),
+    };
     post.meta.kind = kind;
     post.meta.link = link.to_string();
 
@@ -128,6 +156,7 @@ mod tests {
         let meta = PostMeta::default();
         assert!(&meta.title == "Default Title");
         assert!(&meta.link == "default-link");
+        assert!(&meta.url == DEFAULT_ARTICLE_URL);
         assert!(just_now < meta.ts && meta.ts < Local::now());
         assert!(meta.kind == PostKind::Article);
     }
@@ -144,8 +173,9 @@ mod tests {
 
         let post = Post::from_file(&p).unwrap().unwrap();
         assert!(just_now < post.ts && post.ts < Local::now());
-        assert!(&post.title == "Default Title");
+        assert!(&post.title == DEFAULT_TITLE);
         assert!(&post.link == "article");
+        assert!(&post.url == DEFAULT_ARTICLE_URL);
         assert!(post.kind == PostKind::Article);
         assert!(post.content == markdown::markdown_to_html("XXX").unwrap().into_bytes());
 

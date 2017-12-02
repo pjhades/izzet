@@ -52,20 +52,17 @@ impl Site {
         let out_dir = conf.out_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
 
         for p in self.articles.iter().chain(self.pages.iter()) {
-            let mut path = match p.kind {
-                PostKind::Article => PathBuf::from(p.ts.format("%Y/%m/%d").to_string()).join(&p.link),
-                PostKind::Page => PathBuf::from(&p.link),
-            };
+            // skip the leading slash to make the output path correct
+            let url = &p.url()?[1..];
 
             let mut ctx = Context::new();
             ctx.extend(self.ctx.clone());
             ctx.add("post", p);
 
             let rendered = self.tera.render(::POST_FILE, &ctx)
-                .context(format!("fail to generate {:?}", path))?;
-            path.set_extension("html");
-            println!("generating {:?}", path);
-            files::fwrite(out_dir.join(path), rendered.as_bytes(),
+                .context(format!("fail to generate {}", url))?;
+            println!("generating {}", url);
+            files::fwrite(out_dir.join(url), rendered.as_bytes(),
                           conf.force.unwrap_or(false))?;
         }
 
