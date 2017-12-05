@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_create_site() {
-        let dir = env::temp_dir().join("temp");
+        let dir = env::temp_dir().join("new");
         create_site(dir.clone(), true).unwrap();
         assert!(dir.join(::CONFIG_FILE).exists());
         assert!(dir.join(::NOJEKYLL_FILE).exists());
