@@ -3,7 +3,7 @@ use files;
 use std::path::Path;
 use toml;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Conf {
     pub force: Option<bool>,
     pub in_dir: Option<String>,
