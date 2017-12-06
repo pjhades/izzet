@@ -6,6 +6,7 @@ use post::{Post, PostKind};
 use std::{env, fs};
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct Site {
     ctx: Context,
     articles: Vec<Post>,
@@ -75,5 +76,41 @@ impl Site {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::std::{env, fs};
+    use ::post::{create_post, PostKind};
+
+    #[test]
+    fn test_generate() {
+        let dir = env::temp_dir().join("site");
+        ::new::create_site(dir.clone(), true).unwrap();
+
+        let mut c = Conf::default();
+        c.force = Some(true);
+        c.in_dir = Some(dir.to_str().unwrap().to_string());
+        c.out_dir = Some(dir.to_str().unwrap().to_string());
+
+        create_post(dir.join(::SRC_DIR).join("a.md"), c.clone(), PostKind::Article).unwrap();
+        create_post(dir.join(::SRC_DIR).join("p.md"), c.clone(), PostKind::Page).unwrap();
+
+        let site = Site::collect(&c).unwrap();
+
+        assert!(site.articles.first().unwrap().link == "a");
+        assert!(site.pages.first().unwrap().link == "p");
+
+        site.generate(&c).unwrap();
+
+        let p = site.articles.first().unwrap();
+        assert!(dir.join("p.html").exists());
+        assert!(dir.join(p.ts.format("%Y/%m/%d").to_string()).join("a.html").exists());
+        assert!(dir.join(::INDEX_FILE).exists());
+        assert!(dir.join(::ARCHIVE_FILE).exists());
+
+        fs::remove_dir_all(dir).unwrap();
     }
 }

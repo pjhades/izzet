@@ -14,7 +14,7 @@ use toml;
 
 const POST_META_MARK: &str = "%%%\n";
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum PostKind{
     Article,
     Page,
@@ -148,81 +148,76 @@ pub fn create_post<P: AsRef<Path>>(path: P, conf: Conf, kind: PostKind) -> Resul
 mod tests {
     use super::*;
     use ::std::{env, fs};
+    use ::std::fs::{OpenOptions, File, remove_file};
     use ::std::io::Write;
+    use ::std::path::PathBuf;
 
-    #[test]
-    fn test_post_default_value() {
-        let just_now = Local::now();
-        let meta = PostMeta::default();
-        assert!(&meta.title == "Default Title");
-        assert!(&meta.link == "default-link");
-        assert!(&meta.url == DEFAULT_ARTICLE_URL);
-        assert!(just_now < meta.ts && meta.ts < Local::now());
-        assert!(meta.kind == PostKind::Article);
-    }
-
-    #[test]
-    fn test_create_post() {
+    fn assert_create(kind: PostKind) {
         let mut c = Conf::default();
         c.force = Some(true);
         let just_now = Local::now();
 
-        let article_path = env::temp_dir().join("temp-article.md");
-        create_post(&article_path, c.clone(), PostKind::Article).unwrap();
-        fs::OpenOptions::new().append(true).open(&article_path).unwrap().write(b"XXX").unwrap();
+        let path = env::temp_dir().join("x.md");
+        create_post(&path, c.clone(), kind.clone()).unwrap();
 
-        let page_path = env::temp_dir().join("temp-page.md");
-        create_post(&page_path, c, PostKind::Page).unwrap();
-        fs::OpenOptions::new().append(true).open(&page_path).unwrap().write(b"YYY").unwrap();
+        fs::OpenOptions::new().append(true)
+            .open(&path).unwrap()
+            .write(b"XXX").unwrap();
 
-        let article = Post::from_file(&article_path).unwrap().unwrap();
-        assert!(just_now < article.ts && article.ts < Local::now());
-        assert!(&article.link == "temp-article");
-        assert!(article.kind == PostKind::Article);
-        assert!(article.content == markdown::markdown_to_html("XXX").unwrap().into_bytes());
-        fs::remove_file(article_path).unwrap();
+        let post = Post::from_file(&path).unwrap().unwrap();
 
-        let page = Post::from_file(&page_path).unwrap().unwrap();
-        assert!(just_now < page.ts && page.ts < Local::now());
-        assert!(&page.link == "temp-page");
-        assert!(page.kind == PostKind::Page);
-        assert!(page.content == markdown::markdown_to_html("YYY").unwrap().into_bytes());
-        fs::remove_file(page_path).unwrap();
+        assert!(just_now < post.ts && post.ts < Local::now());
+        assert!(&post.link == "x");
+        assert!(post.kind == kind);
+        assert!(post.content == markdown::markdown_to_html("XXX").unwrap().into_bytes());
+
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn test_create_post() {
+        assert_create(PostKind::Article);
+        assert_create(PostKind::Page);
+    }
+
+    fn temp_src() -> (PathBuf, File) {
+        let path = env::temp_dir().join("y.md");
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&path).unwrap();
+        (path, file)
     }
 
     #[test]
     fn test_post_with_bad_meta() {
         // no meta at all
-        let path = env::temp_dir().join("temp-post.md");
-        fs::OpenOptions::new().write(true).create_new(true).open(&path).unwrap()
-            .write(b"XXX").unwrap();
+        let (path, _) = temp_src();
         let post = Post::from_file(&path);
         assert!(post.is_ok());
         assert!(post.unwrap().is_none());
-        fs::remove_file(path).unwrap();
+        remove_file(path).unwrap();
 
         // only a meta ending mark
-        let path = env::temp_dir().join("temp-post.md");
-        fs::OpenOptions::new().write(true).create_new(true).open(&path).unwrap()
-            .write(POST_META_MARK.as_bytes()).unwrap();
-        let post = Post::from_file(&path);
-        assert!(post.is_err());
-        fs::remove_file(path).unwrap();
-
-        // zero-length URL
-        let path = env::temp_dir().join("temp-post.md");
-        let mut file = fs::OpenOptions::new().write(true).create_new(true).open(&path).unwrap();
-        file.write(b"\
-title = \"xxx\"
-link = \"yyy\"
-url = \"\"
-ts = \"2017-12-04T20:23:37.463860-05:00\"
-kind = \"Page\"
-")
-            .unwrap();
+        let (path, mut file) = temp_src();
         file.write(POST_META_MARK.as_bytes()).unwrap();
         let post = Post::from_file(&path);
         assert!(post.is_err());
-        fs::remove_file(path).unwrap();
+        remove_file(path).unwrap();
+
+        // zero-length URL
+        let (path, mut file) = temp_src();
+        file.write(b"title = \"xxx\"\n\
+                     link = \"yyy\"\n\
+                     url = \"\"\n\
+                     ts = \"2017-12-04T20:23:37.463860-05:00\"\n\
+                     kind = \"Page\"\n")
+            .unwrap();
+        file.write(POST_META_MARK.as_bytes()).unwrap();
+
+        let post = Post::from_file(&path);
+        assert!(post.is_err());
+
+        remove_file(path).unwrap();
     }
 }
