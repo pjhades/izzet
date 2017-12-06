@@ -115,9 +115,10 @@ impl Post {
 
     pub fn url(&self) -> Result<String> {
         let mut ctx = Context::new();
+        // call format to make sure the leading zero exists
         ctx.add("year", &self.ts.year());
-        ctx.add("month", &self.ts.month());
-        ctx.add("day", &self.ts.day());
+        ctx.add("month", &self.ts.format("%m").to_string());
+        ctx.add("day", &self.ts.format("%d").to_string());
         ctx.add("link", &self.link);
         Tera::one_off(&self.url, &ctx, false)
             .map_err(|e| Error::from(e))
