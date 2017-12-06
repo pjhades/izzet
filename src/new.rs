@@ -123,3 +123,20 @@ pub fn create_site(dir: PathBuf, force: bool) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::std::{env, fs};
+
+    #[test]
+    fn test_create_site() {
+        let dir = env::temp_dir().join("new");
+        create_site(dir.clone(), true).unwrap();
+        assert!(dir.join(::CONFIG_FILE).exists());
+        assert!(dir.join(::NOJEKYLL_FILE).exists());
+        assert!(dir.join(::SRC_DIR).exists());
+        assert!(dir.join(::THEME_DIR).exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+}

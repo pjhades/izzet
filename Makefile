@@ -5,7 +5,7 @@ debug:
 
 test: unit integration
 unit:
-	cargo test
+	cargo test -- --nocapture
 integration: debug
 	BUILD=debug bash tests/integration.sh
 
