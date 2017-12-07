@@ -5,14 +5,15 @@ izzet
 
 A simple static blog generator, simple enough that nobody wants to use it at all.
 
-Build and Test
-==============
+Build from Source
+=======================
 
 Simple enough, just do:
 
 ```bash
 $ make
 $ make test
+$ make install
 ```
 
 Create a New Site
