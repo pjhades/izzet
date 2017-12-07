@@ -69,13 +69,11 @@ impl Site {
 
             let rendered = self.tera.render(::POST_FILE, &ctx)
                 .context(format!("fail to generate {}", url))?;
-            println!("generating {}", url);
             files::fwrite(out_dir.join(url), rendered.as_bytes(),
                           conf.force.unwrap_or(false))?;
         }
 
         for f in &[::INDEX_FILE, ::ARCHIVE_FILE] {
-            println!("generating {}", f);
             self.tera.render(f, &self.ctx)
                 .context(format!("fail to generate {}", f))
                 .and_then(|rendered| files::fwrite(out_dir.join(f), rendered.as_bytes(),
