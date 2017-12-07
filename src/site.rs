@@ -1,5 +1,5 @@
 use conf::Conf;
-use error::{Error, Result, ResultContext};
+use error::{Result, ResultContext};
 use files;
 use tera::{Tera, Context};
 use post::{Post, PostKind};
@@ -16,13 +16,18 @@ pub struct Site {
 
 impl Site {
     pub fn collect(conf: &Conf) -> Result<Self> {
-        let in_dir = conf.in_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
+        let in_dir = conf.in_dir.as_ref()
+            .map(PathBuf::from)
+            .unwrap_or(env::current_dir()?);
 
         let mut articles = vec![];
         let mut pages = vec![];
-        let mut tera = Tera::new(in_dir.join(::THEME_DIR).join("*").to_str()
-                                 .ok_or(Error::new("cannot get templates".to_string()))?)
+
+        let template_path = in_dir.join(::THEME_DIR).join("*");
+
+        let mut tera = Tera::new(template_path.to_str().unwrap())
             .context("compile templates fails".to_string())?;
+
         tera.autoescape_on(vec![]);
 
         for entry in fs::read_dir(in_dir.join(::SRC_DIR))? {
@@ -50,7 +55,9 @@ impl Site {
     }
 
     pub fn generate(&self, conf: &Conf) -> Result<()> {
-        let out_dir = conf.out_dir.as_ref().map(PathBuf::from).unwrap_or(env::current_dir()?);
+        let out_dir = conf.out_dir.as_ref()
+            .map(PathBuf::from)
+            .unwrap_or(env::current_dir()?);
 
         for p in self.articles.iter().chain(self.pages.iter()) {
             // skip the leading slash to make the output path correct

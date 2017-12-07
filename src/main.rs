@@ -20,12 +20,15 @@ fn usage(opts: &Options) {
 
 fn run(m: Matches, action: &str) -> Result<()> {
     if action == "new" {
-        let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
+        let dir = m.free.get(1)
+            .map(PathBuf::from)
+            .unwrap_or(env::current_dir()?);
         new::create_site(dir, m.opt_present("force"))?;
         return Ok(());
     }
 
-    let mut conf = Conf::from_file(m.opt_str("conf").unwrap_or(izzet::CONFIG_FILE.to_string()))?;
+    let mut conf = Conf::from_file(m.opt_str("conf")
+                                    .unwrap_or(izzet::CONFIG_FILE.to_string()))?;
 
     if m.opt_present("force") {
         conf.force = Some(true)
@@ -36,12 +39,14 @@ fn run(m: Matches, action: &str) -> Result<()> {
 
     match action {
         "article" => {
-            let path = m.free.get(1).ok_or(Error::new("need specify path to the article".to_string()))?;
+            let path = m.free.get(1)
+                .ok_or(Error::new("need specify path to the article".to_string()))?;
             post::create_post(path.to_string(), conf, PostKind::Article)?;
         },
 
         "page" => {
-            let path = m.free.get(1).ok_or(Error::new("need specify path to the page".to_string()))?;
+            let path = m.free.get(1)
+                .ok_or(Error::new("need specify path to the page".to_string()))?;
             post::create_post(path.to_string(), conf, PostKind::Page)?;
         },
 
@@ -52,7 +57,9 @@ fn run(m: Matches, action: &str) -> Result<()> {
         },
 
         "server" => {
-            let dir = m.free.get(1).map(PathBuf::from).unwrap_or(env::current_dir()?);
+            let dir = m.free.get(1)
+                .map(PathBuf::from)
+                .unwrap_or(env::current_dir()?);
             conf.port = m.opt_str("listen")
                 .and_then(|s| s.parse::<u16>().ok());
             server::forever(dir, conf)?;
@@ -70,7 +77,6 @@ fn run(m: Matches, action: &str) -> Result<()> {
 fn main() {
     let mut opts = Options::new();
 
-    // One of these flags should be specified
     opts.optflag("n", "new", "Initialize an empty site at the given location.");
     opts.optflag("a", "article", "Create an article with the given permalink.");
     opts.optflag("p", "page", "Create a page with the given permalink.");

@@ -74,7 +74,8 @@ impl Post {
     }
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<Self>> {
-        let mut reader = File::open(&path).map(|f| BufReader::new(f))
+        let mut reader = File::open(&path)
+            .map(BufReader::new)
             .context(format!("error opening {:?}", path.as_ref()))?;
 
         let mut meta = "".to_string();
@@ -92,6 +93,7 @@ impl Post {
 
         let meta: PostMeta = toml::from_str(&meta)
             .context(format!("error parsing metadata of {:?}", path.as_ref()))?;
+
         // XXX maybe add more metadata sanity check here
         // as later we'll lose the corresponding file path
         // when generating it
@@ -103,9 +105,14 @@ impl Post {
         reader.read_to_end(&mut content)
               .context(format!("error reading content from {:?}", path.as_ref()))?;
 
-        let content = match path.as_ref().extension().and_then(|s| s.to_str()) {
+        let content = match path.as_ref()
+                                .extension()
+                                .and_then(|s| s.to_str()) {
             Some("md") | Some("markdown") =>
-                markdown::markdown_to_html(str::from_utf8(&content)?)?.into_bytes(),
+                str::from_utf8(&content)
+                .map_err(Error::from)
+                .and_then(markdown::markdown_to_html)?
+                .into_bytes(),
             _ =>
                 content,
         };
@@ -120,13 +127,16 @@ impl Post {
         ctx.add("month", &self.ts.format("%m").to_string());
         ctx.add("day", &self.ts.format("%d").to_string());
         ctx.add("link", &self.link);
+
         Tera::one_off(&self.url, &ctx, false)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
     }
 }
 
 pub fn create_post<P: AsRef<Path>>(path: P, conf: Conf, kind: PostKind) -> Result<()> {
-    let link = match path.as_ref().file_stem().and_then(|s| s.to_str()) {
+    let link = match path.as_ref()
+                         .file_stem()
+                         .and_then(|s| s.to_str()) {
         None => return Err(Error::new("need specify link of post".to_string())),
         Some(stem) => stem.to_string(),
     };

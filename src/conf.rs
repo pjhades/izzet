@@ -52,11 +52,10 @@ mod tests {
     fn test_conf_from_file() {
         let p = env::temp_dir().join("conf.test");
         let mut f = File::create(&p).unwrap();
-        f.write(b"
-force = true
-in_dir = \".\"
-port = 9999
-title = \"title\"").unwrap();
+        f.write(b"force = true\n\
+                  in_dir = \".\"\n\
+                  port = 9999\n\
+                  title = \"title\"").unwrap();
 
         let c = Conf::from_file(&p).unwrap();
         assert!(c.force == Some(true));

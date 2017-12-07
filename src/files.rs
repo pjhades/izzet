@@ -17,7 +17,8 @@ pub fn get_opener(force: bool) -> OpenOptions {
 
 pub fn fread<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     let mut content = vec![];
-    File::open(&path).and_then(|mut f| f.read_to_end(&mut content))
+    File::open(&path)
+        .and_then(|mut f| f.read_to_end(&mut content))
         .context(format!("error opening file {:?}", path.as_ref()))?;
     Ok(content)
 }
