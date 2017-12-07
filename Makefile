@@ -1,13 +1,11 @@
 release:
 	cargo build --release
+
 debug:
 	cargo build
 
-test: unit integration
-unit:
+test:
 	cargo test -- --nocapture
-integration: debug
-	BUILD=debug bash tests/integration.sh
 
 install:
 	cargo install
@@ -15,4 +13,4 @@ install:
 clean:
 	cargo clean
 
-.PHONY: release, debug, test, unit, integration, clean, install
+.PHONY: release, debug, test, clean, install
