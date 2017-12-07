@@ -49,14 +49,14 @@ impl Default for PostMeta {
 #[derive(Serialize, Debug)]
 pub struct Post {
     pub meta: PostMeta,
-    pub content: Vec<u8>,
+    pub content: String,
 }
 
 impl Default for Post {
     fn default() -> Self {
         Post {
             meta: PostMeta::default(),
-            content: vec![],
+            content: "".to_string(),
         }
     }
 }
@@ -101,20 +101,15 @@ impl Post {
             return Err(Error::new(format!("output URL of post {:?} is 0", path.as_ref())));
         }
 
-        let mut content = vec![];
-        reader.read_to_end(&mut content)
+        let mut content = "".to_string();
+        reader.read_to_string(&mut content)
               .context(format!("error reading content from {:?}", path.as_ref()))?;
 
         let content = match path.as_ref()
                                 .extension()
                                 .and_then(|s| s.to_str()) {
-            Some("md") | Some("markdown") =>
-                str::from_utf8(&content)
-                .map_err(Error::from)
-                .and_then(markdown::markdown_to_html)?
-                .into_bytes(),
-            _ =>
-                content,
+            Some("md") | Some("markdown") => markdown::markdown_to_html(&content)?,
+            _ => content,
         };
 
         Ok(Some(Post { meta, content }))
@@ -180,7 +175,7 @@ mod tests {
         assert!(just_now < post.ts && post.ts < Local::now());
         assert!(&post.link == "x");
         assert!(post.kind == kind);
-        assert!(post.content == markdown::markdown_to_html("XXX").unwrap().into_bytes());
+        assert!(post.content == markdown::markdown_to_html("XXX").unwrap());
 
         fs::remove_file(path).unwrap();
     }
