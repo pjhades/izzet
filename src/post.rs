@@ -20,7 +20,7 @@ pub enum PostKind{
     Page,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct PostMeta {
     pub title: String,
     pub link: String,
@@ -43,6 +43,45 @@ impl Default for PostMeta {
             ts: Local::now(),
             kind: PostKind::Article,
         }
+    }
+}
+
+impl PostMeta {
+    pub fn from_reader(reader: &mut BufReader<File>) -> Result<Self> {
+        let mut meta = "".to_string();
+        let mut line = "".to_string();
+        loop {
+            match reader.read_line(&mut line) {
+                // metadata line
+                Ok(n) if n > 0 && &line != POST_META_MARK => {
+                    meta += &line;
+                    line.clear();
+                },
+                // metadata mark
+                Ok(n) if n > 0 => break,
+                // all other cases
+                _ => return Err(Error::new("unfinished metadata found".to_string())),
+            }
+        }
+        // use default metadata if nothing is found
+        if meta.len() == 0 {
+            return Ok(PostMeta::default());
+        }
+        // parse and do sanity check
+        let meta: PostMeta = toml::from_str(&meta)
+            .context("error parsing metadata".to_string())?;
+        // XXX probably this check should be improved
+        if meta.url.len() == 0 {
+            return Err(Error::new("invalid output URL".to_string()));
+        }
+        Ok(meta)
+    }
+
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let mut reader = File::open(&path)
+            .map(BufReader::new)
+            .context(format!("error opening {:?}", path.as_ref()))?;
+        PostMeta::from_reader(&mut reader)
     }
 }
 
@@ -73,33 +112,11 @@ impl Post {
         Post::default()
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Option<Self>> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut reader = File::open(&path)
             .map(BufReader::new)
             .context(format!("error opening {:?}", path.as_ref()))?;
-
-        let mut meta = "".to_string();
-        let mut line = "".to_string();
-        loop {
-            match reader.read_line(&mut line) {
-                Ok(n) if n > 0 && &line != POST_META_MARK => {
-                    meta += &line;
-                    line.clear();
-                },
-                Ok(n) if n > 0 => break,
-                _ => return Ok(None),
-            }
-        }
-
-        let meta: PostMeta = toml::from_str(&meta)
-            .context(format!("error parsing metadata of {:?}", path.as_ref()))?;
-
-        // XXX maybe add more metadata sanity check here
-        // as later we'll lose the corresponding file path
-        // when generating it
-        if meta.url.len() == 0 {
-            return Err(Error::new(format!("output URL of post {:?} is 0", path.as_ref())));
-        }
+        let meta = PostMeta::from_reader(&mut reader)?;
 
         let mut content = "".to_string();
         reader.read_to_string(&mut content)
@@ -112,7 +129,7 @@ impl Post {
             _ => content,
         };
 
-        Ok(Some(Post { meta, content }))
+        Ok(Post { meta, content })
     }
 
     pub fn url(&self) -> Result<String> {
@@ -170,7 +187,7 @@ mod tests {
             .open(&path).unwrap()
             .write(b"XXX").unwrap();
 
-        let post = Post::from_file(&path).unwrap().unwrap();
+        let post = Post::from_file(&path).unwrap();
 
         assert!(just_now < post.ts && post.ts < Local::now());
         assert!(&post.link == "x");
@@ -197,18 +214,20 @@ mod tests {
 
     #[test]
     fn test_post_with_bad_meta() {
-        // no meta at all
-        let (path, _) = temp_src();
-        let post = Post::from_file(&path);
-        assert!(post.is_ok());
-        assert!(post.unwrap().is_none());
-        remove_file(path).unwrap();
-
         // only a meta ending mark
         let (path, mut file) = temp_src();
         file.write(POST_META_MARK.as_bytes()).unwrap();
-        let post = Post::from_file(&path);
-        assert!(post.is_err());
+        let meta = PostMeta::from_file(&path).unwrap();
+        assert_eq!(meta.title, DEFAULT_TITLE.to_string());
+        assert_eq!(meta.link, DEFAULT_LINK.to_string());
+        assert_eq!(meta.url, DEFAULT_ARTICLE_URL.to_string());
+        assert_eq!(meta.kind, PostKind::Article);
+        remove_file(path).unwrap();
+
+        // no meta at all
+        let (path, _) = temp_src();
+        let meta = PostMeta::from_file(&path);
+        assert!(meta.is_err());
         remove_file(path).unwrap();
 
         // zero-length URL
@@ -220,10 +239,8 @@ mod tests {
                      kind = \"Page\"\n")
             .unwrap();
         file.write(POST_META_MARK.as_bytes()).unwrap();
-
-        let post = Post::from_file(&path);
-        assert!(post.is_err());
-
+        let meta = PostMeta::from_file(&path);
+        assert!(meta.is_err());
         remove_file(path).unwrap();
     }
 }

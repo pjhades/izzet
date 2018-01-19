@@ -6,6 +6,7 @@ use toml;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Conf {
     pub force: Option<bool>,
+    pub full: Option<bool>,
     pub in_dir: Option<String>,
     pub out_dir: Option<String>,
     pub port: Option<u16>,
@@ -15,6 +16,7 @@ pub struct Conf {
 impl Default for Conf {
     fn default() -> Self {
         Conf {
+            full: None,
             force: None,
             in_dir: None,
             out_dir: None,
@@ -41,6 +43,7 @@ mod tests {
     #[test]
     fn test_conf_defeault_value() {
         let c = Conf::default();
+        assert!(c.full == None);
         assert!(c.force == None);
         assert!(c.in_dir == None);
         assert!(c.out_dir == None);
@@ -58,6 +61,7 @@ mod tests {
                   title = \"title\"").unwrap();
 
         let c = Conf::from_file(&p).unwrap();
+        assert!(c.full == None);
         assert!(c.force == Some(true));
         assert!(c.in_dir == Some(".".to_string()));
         assert!(c.out_dir == None);

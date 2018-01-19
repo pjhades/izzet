@@ -86,7 +86,8 @@ fn main() {
                                  specified by a directory.");
     opts.optflag("f", "force", "Overwrite existing files when creating articles, \
                                 generating site output files, etc.");
-
+    opts.optflag("F", "full", "Force generating the entire site. This will disable \
+                               incremental building.");
     opts.optopt("c", "conf", "Search for configuration file at the specified \
                               directory. By default the configuration file will be \
                               looked for under the current directory.", "CONFIG");
